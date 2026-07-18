@@ -21,14 +21,46 @@ function publicProviderError(providerName, error) {
   };
 }
 
-function publicProviderReport({ providerName, offersReceived, validOffers, invalidOffers }) {
+function publicProviderReport({ providerName, offersReceived, validOffers, invalidOffers, ...report }) {
   return {
     providerName,
     status: 'ok',
     offersReceived,
     validOffers,
-    invalidOffers
+    invalidOffers,
+    ...report
   };
+}
+
+function isPlainObject(value) {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function sanitizeProviderReport(report) {
+  if (!isPlainObject(report)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    ['candidatesExtracted', 'candidatesRejected', 'verificationLayer']
+      .filter((key) => report[key] !== undefined)
+      .map((key) => [key, report[key]])
+  );
+}
+
+function normalizeProviderSearchPayload(payload) {
+  if (Array.isArray(payload)) {
+    return { offers: payload, report: {} };
+  }
+
+  if (isPlainObject(payload) && Array.isArray(payload.offers)) {
+    return {
+      offers: payload.offers,
+      report: sanitizeProviderReport(payload.report)
+    };
+  }
+
+  return undefined;
 }
 
 export function createSearchService({ providerRegistry, maxResults = 3 }) {
@@ -52,9 +84,9 @@ export function createSearchService({ providerRegistry, maxResults = 3 }) {
       const providerResults = await Promise.all(
         providers.map(async (provider) => {
           try {
-            const offers = await provider.search(request);
+            const payload = normalizeProviderSearchPayload(await provider.search(request));
 
-            if (!Array.isArray(offers)) {
+            if (!payload) {
               return {
                 providerName: provider.name,
                 status: 'failed'
@@ -64,7 +96,7 @@ export function createSearchService({ providerRegistry, maxResults = 3 }) {
             return {
               providerName: provider.name,
               status: 'ok',
-              offers
+              ...payload
             };
           } catch (error) {
             return {
@@ -86,7 +118,7 @@ export function createSearchService({ providerRegistry, maxResults = 3 }) {
           continue;
         }
 
-        const { providerName, offers } = result;
+        const { providerName, offers, report } = result;
         let providerValidOfferCount = 0;
 
         for (const offer of offers) {
@@ -108,7 +140,8 @@ export function createSearchService({ providerRegistry, maxResults = 3 }) {
           providerName,
           offersReceived: offers.length,
           validOffers: providerValidOfferCount,
-          invalidOffers: offers.length - providerValidOfferCount
+          invalidOffers: offers.length - providerValidOfferCount,
+          ...report
         }));
       }
 

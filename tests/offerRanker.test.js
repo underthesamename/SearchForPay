@@ -111,6 +111,49 @@ test('validateOffer rejeita oferta sem frete ou imposto', () => {
   assert.ok(validation.errors.includes('shipping invalido.'));
 });
 
+test('validateOffer aceita frete nao exposto somente com aviso', () => {
+  const validation = validateOffer(
+    offer({
+      shipping: {
+        amountCents: 0,
+        currency: 'BRL',
+        exposed: false,
+        warning: 'Frete nao exposto pelo provedor.'
+      }
+    })
+  );
+
+  assert.equal(validation.valid, true);
+});
+
+test('rankOffers coloca oferta com frete exposto antes de subtotal conhecido', () => {
+  const ranked = rankOffers([
+    offer({
+      productTitle: 'Subtotal conhecido menor',
+      price: { amountCents: 8000, currency: 'BRL' },
+      shipping: {
+        amountCents: 0,
+        currency: 'BRL',
+        exposed: false,
+        warning: 'Frete nao exposto pelo provedor.'
+      },
+      taxes: { amountCents: 500, currency: 'BRL' }
+    }),
+    offer({
+      productTitle: 'Custo total completo',
+      price: { amountCents: 10000, currency: 'BRL' },
+      shipping: { amountCents: 1000, currency: 'BRL' },
+      taxes: { amountCents: 500, currency: 'BRL' }
+    })
+  ]);
+
+  assert.equal(ranked[0].productTitle, 'Custo total completo');
+  assert.equal(ranked[0].totalCost.complete, true);
+  assert.equal(ranked[1].productTitle, 'Subtotal conhecido menor');
+  assert.equal(ranked[1].totalCost.complete, false);
+  assert.match(ranked[1].ranking.explanation, /subtotal conhecido/);
+});
+
 test('validateOffer rejeita oferta sem loja, link seguro ou origem real', () => {
   const validation = validateOffer(
     offer({
@@ -169,4 +212,18 @@ test('rankOffers nao coloca oferta invalida no ranking', () => {
 
   assert.equal(ranked.length, 1);
   assert.equal(ranked[0].productTitle, 'Oferta valida');
+});
+
+test('rankOffers inclui nivel de confianca quando a oferta foi verificada', () => {
+  const ranked = rankOffers([
+    offer({
+      verification: {
+        confidenceLevel: 'medium',
+        evidence: [{ field: 'price', url: 'https://example.com/evidence' }]
+      }
+    })
+  ]);
+
+  assert.equal(ranked[0].ranking.criteria.confidenceLevel, 'medium');
+  assert.match(ranked[0].ranking.explanation, /confianca medium/);
 });

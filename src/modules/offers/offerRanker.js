@@ -5,7 +5,7 @@ export const TOP_OFFER_LIMIT = 3;
 
 export const RANKING_RULES = Object.freeze({
   maxResults: TOP_OFFER_LIMIT,
-  primary: 'totalCost.amountCents',
+  primary: 'totalCost.complete.desc, totalCost.amountCents',
   tieBreakers: Object.freeze([
     'delivery.maxDays.asc',
     'seller.reputationScore.desc',
@@ -38,14 +38,22 @@ function getDeliveryLabel(offer) {
   return Number.isFinite(maxDays) ? `ate ${maxDays} dias` : 'nao informado';
 }
 
+function getConfidenceLabel(offer) {
+  return offer.verification?.confidenceLevel || 'provider';
+}
+
 function createRankingDetails(offer, position) {
+  const basis = offer.totalCost.complete === false ? 'subtotal conhecido, porque o frete nao foi exposto' : 'custo total';
+
   return {
     position,
-    explanation: `Entrou no top 3 na posicao ${position} pelo custo total; desempates usam prazo, reputacao e titulo.`,
+    explanation: `Entrou no top 3 na posicao ${position} pelo ${basis}; confianca ${getConfidenceLabel(offer)}; desempates usam prazo, reputacao e titulo.`,
     criteria: {
       totalCost: offer.totalCost,
+      completeTotalCost: offer.totalCost.complete !== false,
       maxDeliveryDays: Number.isFinite(getMaxDeliveryDays(offer)) ? getMaxDeliveryDays(offer) : null,
       delivery: getDeliveryLabel(offer),
+      confidenceLevel: getConfidenceLabel(offer),
       reputationScore: getReputationScore(offer),
       reputation: getReputationLabel(offer),
       title: offer.productTitle
@@ -55,6 +63,7 @@ function createRankingDetails(offer, position) {
 
 function compareRankedOffers(left, right) {
   return (
+    Number(right.totalCost.complete !== false) - Number(left.totalCost.complete !== false) ||
     left.totalCost.amountCents - right.totalCost.amountCents ||
     getMaxDeliveryDays(left) - getMaxDeliveryDays(right) ||
     getReputationScore(right) - getReputationScore(left) ||

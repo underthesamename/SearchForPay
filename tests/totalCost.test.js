@@ -101,3 +101,23 @@ test('calculateTotalCost reserva base futura sem aplicar cupom inventado', () =>
   assert.equal(totalCost.futureRules.delivery.status, 'ranking_tie_breaker');
   assert.equal(totalCost.futureRules.reputation.status, 'ranking_tie_breaker');
 });
+
+test('calculateTotalCost marca subtotal quando frete nao foi exposto', () => {
+  const totalCost = calculateTotalCost(
+    offer({
+      shipping: {
+        amountCents: 0,
+        currency: 'BRL',
+        exposed: false,
+        warning: 'Frete nao exposto pelo provedor.'
+      }
+    })
+  );
+
+  assert.equal(totalCost.complete, false);
+  assert.deepEqual(totalCost.missingComponents, ['shipping']);
+  assert.equal(totalCost.amountCents, 10500);
+  assert.equal(totalCost.breakdown.shipping.exposed, false);
+  assert.equal(totalCost.breakdown.shipping.includedInTotal, false);
+  assert.equal(totalCost.warnings[0], 'Frete nao exposto pelo provedor.');
+});

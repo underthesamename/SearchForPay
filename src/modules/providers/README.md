@@ -55,13 +55,15 @@ Regras:
 
 - Nao retornar dados simulados.
 - Tipos de fonte aceitos: `api`, `feed`, `affiliate` ou `partner`.
-- Se frete ou imposto nao puderem ser calculados com fonte real, a oferta deve ser descartada ou marcada como erro no adaptador.
+- Se imposto nao puder ser calculado com fonte real, a oferta deve ser descartada ou marcada como erro no adaptador.
+- Se frete nao vier exposto pela fonte, a oferta pode entrar somente com `shipping.exposed=false`, `shipping.warning` e custo total incompleto.
 - `providerName` da oferta precisa bater com o `name` do provedor configurado.
 - `productUrl` precisa ser HTTPS.
 - `price`, `shipping` e `taxes` precisam usar a mesma moeda em codigo ISO de 3 letras.
 - `seller.name` e `source.name` sao obrigatorios para a oferta entrar no ranking.
 - Nao registrar chaves de API em logs.
 - Registrar o adaptador real em `providerRegistry.js` e ativar pelo `MARKETPLACE_PROVIDERS`.
+- Adaptador que usa pesquisa web deve retornar candidatos rejeitados apenas no relatorio, nunca como oferta final.
 
 ## Adapter `ebay`
 
@@ -154,3 +156,63 @@ Regras especificas:
 - Preco vem de `salePrice` ou `price`; frete vem de `shipping` ou `freeShippingThreshold`; imposto vem de `taxes`.
 - Ofertas sem link HTTPS, preco, frete ou imposto aplicavel ao pais/CEP da busca sao descartadas.
 - Erros externos sao sanitizados e nao expoem `GOOGLE_MERCHANT_ACCESS_TOKEN`.
+
+## Adapter `lomadee`
+
+Fonte real: Lomadee Affiliate Products API.
+
+Documentacao oficial usada:
+
+- Products: `https://docs.lomadee.com.br/api-reference/affiliate/products/all`
+- Introducao/autenticacao: `https://docs.lomadee.com.br/api-reference/introduction`
+
+Configuracao `.env`:
+
+```dotenv
+MARKETPLACE_PROVIDERS=lomadee
+LOMADEE_API_KEY=
+LOMADEE_ORGANIZATION_IDS=
+LOMADEE_CURRENCY=BRL
+LOMADEE_SEARCH_LIMIT=10
+LOMADEE_REQUEST_TIMEOUT_MS=8000
+```
+
+Regras especificas:
+
+- O adapter usa `GET /affiliate/products` com header `x-api-key`, `search`, `limit` e `isAvailable=true`.
+- `LOMADEE_ORGANIZATION_IDS` e opcional e limita a busca a marcas especificas.
+- Preco vem de `options[].pricing[].price`, em centavos.
+- A documentacao base de produtos nao garante frete; por isso o adapter aceita produto sem frete exposto apenas com aviso claro e subtotal conhecido.
+- Imposto precisa aparecer explicitamente em campos ou metadados do produto/opcao/preco; sem imposto, a oferta e descartada.
+- Erros externos sao sanitizados e nao expoem `LOMADEE_API_KEY`.
+
+## Adapter `openaiweb`
+
+Fonte real: OpenAI Responses API com ferramenta `web_search`.
+
+Documentacao oficial usada:
+
+- Responses API: `https://developers.openai.com/api/reference/resources/responses/methods/create`
+- Web search: `https://developers.openai.com/api/docs/guides/tools-web-search`
+- Structured outputs: `https://developers.openai.com/api/docs/guides/structured-outputs`
+
+Configuracao `.env`:
+
+```dotenv
+MARKETPLACE_PROVIDERS=openaiweb
+OPENAI_API_KEY=
+OPENAI_RESPONSES_URL=
+OPENAI_SEARCH_MODEL=gpt-5.6
+OPENAI_SEARCH_LIMIT=6
+OPENAI_REQUEST_TIMEOUT_MS=10000
+OPENAI_STORE_RESPONSES=false
+```
+
+Regras especificas:
+
+- O adapter usa `POST /v1/responses`, `tools: [{ type: "web_search" }]` e schema JSON estrito.
+- A chamada envia produto, CEP, pais e moeda para orientar a pesquisa, mas logs internos nao registram esses dados.
+- A resposta da web vira candidato primeiro; so entra no ranking se passar pela validacao interna de Offer.
+- Preco e imposto precisam ter evidencia HTTPS e texto de evidencia. Imposto desconhecido nao vira zero.
+- Frete ausente entra somente como `shipping.exposed=false`, aviso claro e custo total incompleto.
+- Erros externos sao sanitizados e nao expoem `OPENAI_API_KEY`.

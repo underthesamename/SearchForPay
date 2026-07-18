@@ -17,6 +17,7 @@
 - Toda oferta exibida ao usuario precisa vir de provedor real configurado.
 - Quando nao houver provedor real configurado, a API deve falhar de forma clara.
 - Frete e imposto fazem parte do custo total, nao sao detalhe opcional.
+- Produto sem frete exposto pode aparecer, mas precisa avisar o usuario e ser tratado como custo total incompleto.
 - Erros de provedor devem ser tratados explicitamente, sem expor tokens, chaves ou dados pessoais.
 
 ## Erros ja cometidos
@@ -25,3 +26,4 @@
 - Em handlers HTTP async, retornar Promise sem `await` dentro de `try/catch` deixa erro esperado virar rejeicao nao capturada; usar `return await`.
 - Ao alterar `try/catch`, conferir sintaxe antes de seguir; `catch` duplicado em `searchService.js` quebrou o parse.
 - Este PowerShell nao aceita `Invoke-WebRequest -SkipHttpErrorCheck`; para validar erro HTTP esperado, usar `try/catch`.
+- Ao adicionar enriquecimento apos montar objeto de oferta, nao retornar o objeto antes do enriquecimento; criar `const offer`, aplicar campos extras e so entao retornar.

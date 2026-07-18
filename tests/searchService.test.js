@@ -258,6 +258,37 @@ test('searchService retorna oferta valida e relatorio por provedor', async () =>
   assert.equal(payload.meta.providerReports[0].invalidOffers, 0);
 });
 
+test('searchService preserva relatorio web sanitizado sem dados pessoais', async () => {
+  const service = createSearchService({
+    providerRegistry: registry([
+      provider({
+        async search() {
+          return {
+            offers: [validOffer()],
+            report: {
+              candidatesExtracted: 2,
+              candidatesRejected: 1,
+              verificationLayer: 'web_search',
+              postalCode: '01001000'
+            }
+          };
+        }
+      })
+    ])
+  });
+
+  const payload = await service.search({
+    query: 'monitor',
+    context: { postalCode: '01001000', country: 'BR', currency: 'BRL' }
+  });
+
+  assert.equal(payload.results.length, 1);
+  assert.equal(payload.meta.providerReports[0].candidatesExtracted, 2);
+  assert.equal(payload.meta.providerReports[0].candidatesRejected, 1);
+  assert.equal(payload.meta.providerReports[0].verificationLayer, 'web_search');
+  assert.equal(payload.meta.providerReports[0].postalCode, undefined);
+});
+
 test('searchService mantem busca quando um provedor falha e outro retorna oferta valida', async () => {
   const service = createSearchService({
     providerRegistry: registry([

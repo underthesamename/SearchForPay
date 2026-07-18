@@ -62,6 +62,22 @@ function validateMoneyField(errors, fieldName, value, { allowZero }) {
   }
 }
 
+function validateShipping(errors, shipping) {
+  validateMoneyField(errors, 'shipping', shipping, { allowZero: true });
+
+  if (!isPlainObject(shipping) || shipping.exposed !== false) {
+    return;
+  }
+
+  if (shipping.amountCents !== 0) {
+    errors.push('shipping.amountCents precisa ser zero quando o frete nao foi exposto.');
+  }
+
+  if (!hasText(shipping.warning)) {
+    errors.push('shipping.warning ausente para frete nao exposto.');
+  }
+}
+
 function validateSource(errors, source) {
   if (!isPlainObject(source)) {
     errors.push('source ausente.');
@@ -134,7 +150,7 @@ export function validateOffer(offer, options = {}) {
 
   validateSeller(errors, offer.seller);
   validateMoneyField(errors, 'price', offer.price, { allowZero: false });
-  validateMoneyField(errors, 'shipping', offer.shipping, { allowZero: true });
+  validateShipping(errors, offer.shipping);
   validateMoneyField(errors, 'taxes', offer.taxes, { allowZero: true });
 
   if (

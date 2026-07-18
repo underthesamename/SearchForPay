@@ -9,7 +9,7 @@ Este repositorio contem o esqueleto inicial do sistema:
 - API HTTP em Node.js puro.
 - Interface web simples para busca.
 - Contrato de provedores reais.
-- Adaptadores reais: eBay Browse API, Shopify Storefront API e Google Merchant API.
+- Adaptadores reais: eBay Browse API, Shopify Storefront API, Google Merchant API, Lomadee Affiliate Products API e OpenAI Responses API com web_search.
 - Ranking por custo total.
 - Validacao para impedir ofertas incompletas ou ficticias.
 
@@ -63,7 +63,7 @@ Para publicar, siga [PRODUCTION.md](./PRODUCTION.md). Em mais de uma instancia, 
 
 ## Provedor eBay
 
-Os provedores reais disponiveis sao `ebay`, `shopify` e `googlemerchant`. Ative somente provedores com credencial real em `MARKETPLACE_PROVIDERS`.
+Os provedores reais disponiveis sao `ebay`, `shopify`, `googlemerchant`, `lomadee` e `openaiweb`. Ative somente provedores com credencial real em `MARKETPLACE_PROVIDERS`.
 
 ### eBay
 
@@ -82,7 +82,7 @@ EBAY_REQUEST_TIMEOUT_MS=8000
 
 Use `EBAY_CLIENT_ID` e `EBAY_CLIENT_SECRET` para OAuth client credentials, ou `EBAY_BROWSE_ACCESS_TOKEN` quando ja houver um token de aplicacao valido. O adapter usa endpoints oficiais por padrao e rejeita override sem HTTPS.
 
-Para a oferta entrar no ranking, o retorno real do eBay precisa trazer preco, frete, imposto calculavel, moeda, vendedor, URL HTTPS e origem. Se imposto ou frete nao vierem da API de forma calculavel, a oferta e descartada.
+Para a oferta entrar no ranking completo, o retorno real do eBay precisa trazer preco, frete, imposto calculavel, moeda, vendedor, URL HTTPS e origem. Se o frete nao vier exposto, a oferta so pode aparecer marcada como subtotal conhecido e com aviso claro.
 
 ### Shopify
 
@@ -113,6 +113,36 @@ GOOGLE_MERCHANT_REQUEST_TIMEOUT_MS=8000
 ```
 
 O adapter lista produtos processados da conta Merchant Center e usa preco, frete e impostos declarados nos atributos do produto. Sem esses campos reais, a oferta e descartada.
+
+### Lomadee
+
+Baseado no endpoint oficial `GET https://api.lomadee.com.br/affiliate/products`. Configure uma chave real:
+
+```dotenv
+MARKETPLACE_PROVIDERS=lomadee
+LOMADEE_API_KEY=
+LOMADEE_ORGANIZATION_IDS=
+LOMADEE_CURRENCY=BRL
+LOMADEE_SEARCH_LIMIT=10
+LOMADEE_REQUEST_TIMEOUT_MS=8000
+```
+
+A API de produtos documenta preco em centavos, disponibilidade, URL, vendedor e metadados. Como frete nao e campo base garantido, o adapter aceita produto sem frete exposto, mas exibe aviso e marca o resultado como subtotal conhecido. Imposto continua obrigatorio para evitar comparacao fiscal falsa.
+
+### OpenAI web_search
+
+Baseado no Responses API com a ferramenta oficial `web_search`. Configure uma chave real da OpenAI:
+
+```dotenv
+MARKETPLACE_PROVIDERS=openaiweb
+OPENAI_API_KEY=
+OPENAI_SEARCH_MODEL=gpt-5.6
+OPENAI_SEARCH_LIMIT=6
+OPENAI_REQUEST_TIMEOUT_MS=10000
+OPENAI_STORE_RESPONSES=false
+```
+
+Este adapter e uma camada de pesquisa/verificacao, nao uma fonte magica de preco. Ele pede JSON estruturado com evidencias e a SearchForPay so transforma candidato em oferta final quando ha preco, imposto, moeda, loja, URL HTTPS e origem real. Imposto desconhecido descarta o candidato. Frete ausente pode aparecer apenas como subtotal conhecido com aviso claro.
 
 ## Alertas de preco
 

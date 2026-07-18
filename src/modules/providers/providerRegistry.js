@@ -1,11 +1,15 @@
 import { ensureProviderContract } from './contract.js';
 import { createEbayBrowseProvider } from './adapters/ebayBrowseAdapter.js';
 import { createGoogleMerchantProvider } from './adapters/googleMerchantAdapter.js';
+import { createLomadeeProvider } from './adapters/lomadeeAdapter.js';
+import { createOpenAiWebProvider } from './adapters/openaiSearchAdapter.js';
 import { createShopifyStorefrontProvider } from './adapters/shopifyStorefrontAdapter.js';
 
 const adapterFactories = new Map([
   ['ebay', createEbayBrowseProvider],
   ['googlemerchant', createGoogleMerchantProvider],
+  ['lomadee', createLomadeeProvider],
+  ['openaiweb', createOpenAiWebProvider],
   ['shopify', createShopifyStorefrontProvider]
 ]);
 

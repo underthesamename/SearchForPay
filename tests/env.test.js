@@ -4,7 +4,7 @@ import { getEnv } from '../src/config/env.js';
 
 test('getEnv monta configuracao do provider ebay a partir do ambiente', () => {
   const env = getEnv({
-    MARKETPLACE_PROVIDERS: 'ebay,shopify,googlemerchant',
+    MARKETPLACE_PROVIDERS: 'ebay,shopify,googlemerchant,lomadee,openaiweb',
     EBAY_ENVIRONMENT: 'sandbox',
     EBAY_MARKETPLACE_ID: 'EBAY_US',
     EBAY_SEARCH_LIMIT: '5',
@@ -13,6 +13,13 @@ test('getEnv monta configuracao do provider ebay a partir do ambiente', () => {
     SHOPIFY_SEARCH_LIMIT: '4',
     GOOGLE_MERCHANT_ACCOUNT_ID: '123456',
     GOOGLE_MERCHANT_PAGE_SIZE: '7',
+    LOMADEE_API_KEY: 'lomadee-key-redigida',
+    LOMADEE_ORGANIZATION_IDS: 'e36f5bbb-3e5f-42e2-be4c-6c32dac101c2',
+    LOMADEE_SEARCH_LIMIT: '13',
+    OPENAI_API_KEY: 'openai-key-redigida',
+    OPENAI_SEARCH_MODEL: 'gpt-5.6',
+    OPENAI_SEARCH_LIMIT: '8',
+    OPENAI_REQUEST_TIMEOUT_MS: '3500',
     PRICE_ALERTS_FILE: '.local/alerts.json',
     PRICE_ALERT_JOB_INTERVAL_MS: '30000',
     PRICE_ALERT_RECHECK_INTERVAL_MS: '90000',
@@ -24,7 +31,7 @@ test('getEnv monta configuracao do provider ebay a partir do ambiente', () => {
     loadDotEnv: false
   });
 
-  assert.deepEqual(env.marketplaceProviders, ['ebay', 'shopify', 'googlemerchant']);
+  assert.deepEqual(env.marketplaceProviders, ['ebay', 'shopify', 'googlemerchant', 'lomadee', 'openaiweb']);
   assert.equal(env.providerOptions.ebay.environment, 'sandbox');
   assert.equal(env.providerOptions.ebay.marketplaceId, 'EBAY_US');
   assert.equal(env.providerOptions.ebay.searchLimit, 5);
@@ -33,6 +40,13 @@ test('getEnv monta configuracao do provider ebay a partir do ambiente', () => {
   assert.equal(env.providerOptions.shopify.searchLimit, 4);
   assert.equal(env.providerOptions.googlemerchant.accountId, '123456');
   assert.equal(env.providerOptions.googlemerchant.pageSize, 7);
+  assert.equal(env.providerOptions.lomadee.apiKey, 'lomadee-key-redigida');
+  assert.equal(env.providerOptions.lomadee.organizationIds, 'e36f5bbb-3e5f-42e2-be4c-6c32dac101c2');
+  assert.equal(env.providerOptions.lomadee.searchLimit, 13);
+  assert.equal(env.providerOptions.openaiweb.apiKey, 'openai-key-redigida');
+  assert.equal(env.providerOptions.openaiweb.model, 'gpt-5.6');
+  assert.equal(env.providerOptions.openaiweb.searchLimit, 8);
+  assert.equal(env.providerOptions.openaiweb.requestTimeoutMs, 3500);
   assert.equal(env.priceAlertsFile, '.local/alerts.json');
   assert.equal(env.priceAlertJobIntervalMs, 30000);
   assert.equal(env.priceAlertRecheckIntervalMs, 90000);

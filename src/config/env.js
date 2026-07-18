@@ -97,6 +97,28 @@ function getGoogleMerchantConfig(source, requestTimeoutMs) {
   };
 }
 
+function getLomadeeConfig(source, requestTimeoutMs) {
+  return {
+    apiKey: cleanString(source.LOMADEE_API_KEY),
+    productsBaseUrl: cleanString(source.LOMADEE_PRODUCTS_BASE_URL),
+    organizationIds: cleanString(source.LOMADEE_ORGANIZATION_IDS),
+    currency: cleanString(source.LOMADEE_CURRENCY || source.DEFAULT_CURRENCY || 'BRL'),
+    searchLimit: parseInteger(source.LOMADEE_SEARCH_LIMIT, 10),
+    requestTimeoutMs: parseInteger(source.LOMADEE_REQUEST_TIMEOUT_MS, requestTimeoutMs)
+  };
+}
+
+function getOpenAiWebConfig(source, requestTimeoutMs) {
+  return {
+    apiKey: cleanString(source.OPENAI_API_KEY),
+    responsesUrl: cleanString(source.OPENAI_RESPONSES_URL),
+    model: cleanString(source.OPENAI_SEARCH_MODEL || 'gpt-5.6'),
+    searchLimit: parseInteger(source.OPENAI_SEARCH_LIMIT, 6),
+    requestTimeoutMs: parseInteger(source.OPENAI_REQUEST_TIMEOUT_MS, requestTimeoutMs),
+    storeResponses: cleanString(source.OPENAI_STORE_RESPONSES || 'false')
+  };
+}
+
 export function getEnv(source = process.env, options = {}) {
   const dotEnv = options.loadDotEnv === false ? {} : readDotEnv(options.envFilePath || resolve(process.cwd(), '.env'));
   const mergedSource = {
@@ -131,6 +153,8 @@ export function getEnv(source = process.env, options = {}) {
     providerOptions: {
       ebay: getEbayConfig(mergedSource, requestTimeoutMs),
       googlemerchant: getGoogleMerchantConfig(mergedSource, requestTimeoutMs),
+      lomadee: getLomadeeConfig(mergedSource, requestTimeoutMs),
+      openaiweb: getOpenAiWebConfig(mergedSource, requestTimeoutMs),
       shopify: getShopifyConfig(mergedSource, requestTimeoutMs)
     }
   };
