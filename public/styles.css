@@ -1,0 +1,149 @@
+:root {
+  color-scheme: light;
+  --canvas: #f6f7f4;
+  --surface: #ffffff;
+  --surface-soft: #edf3ef;
+  --ink: #111512;
+  --muted: #657067;
+  --line: rgba(17, 21, 18, 0.12);
+  --line-strong: rgba(17, 21, 18, 0.2);
+  --accent: #126b59;
+  --accent-ink: #ffffff;
+  --focus: rgba(18, 107, 89, 0.16);
+  --warning: #92600f;
+  --danger: #b42318;
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-shell { width: min(1180px, calc(100% - 24px)); margin: 0 auto; padding: 24px 0 40px; }
+
+.app-header,
+.search-form,
+.section-head,
+.result-card,
+.provider-item,
+.state-panel { display: flex; }
+
+.app-header { align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+
+.brand, h1, h2, h3, p, dl { margin: 0; }
+
+.brand { color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
+
+h1 { margin-top: 4px; font-size: 28px; line-height: 1.14; letter-spacing: 0; }
+h2 { font-size: 15px; line-height: 1.3; letter-spacing: 0; }
+h3 { font-size: 17px; line-height: 1.3; letter-spacing: 0; text-wrap: pretty; }
+
+.health,
+.state-panel,
+.search-form,
+.result-card,
+.providers-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.health {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.health[data-status="ok"] { color: var(--accent); }
+.health[data-status="warn"] { color: var(--warning); }
+.health[data-status="error"] { color: var(--danger); }
+
+.search-form { display: grid; grid-template-columns: minmax(260px, 1fr) 192px 280px 164px; align-items: start; gap: 12px; padding: 12px; margin-bottom: 12px; }
+
+.field {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.field small { color: var(--muted); font-size: 11px; font-weight: 500; line-height: 1.35; }
+
+.field-product { flex: 1 1 360px; }
+.field-small { width: auto; }
+
+.context-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+
+input,
+select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  padding: 0 12px;
+}
+
+select {
+  cursor: pointer;
+}
+
+input:focus,
+select:focus {
+  border-color: var(--accent);
+  outline: 3px solid var(--focus);
+}
+
+.search-button,
+.offer-link {
+  min-height: 44px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0 18px;
+  transition: background 160ms ease, transform 120ms ease, opacity 160ms ease;
+}
+
+.search-button:hover,
+.offer-link:hover { background: #0f594b; }
+.search-button:active { transform: scale(0.98); }
+.search-button:disabled { cursor: wait; opacity: 0.65; }
+.search-form > .search-button { align-self: start; margin-top: 25px; }
+
+.state-panel { align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; margin-bottom: 16px; color: var(--muted); }
+
+.state-panel strong { color: var(--ink); font-size: 14px; }
+.state-panel:focus { outline: 3px solid var(--focus); outline-offset: 2px; }
+.state-panel[data-state-kind="loading"] { background: var(--surface-soft); }
+.state-panel[data-state-kind="error"] { border-color: rgba(180, 35, 24, 0.34); }
+.state-panel[data-state-kind="error"] strong { color: var(--danger); }
+.state-panel[data-state-kind="success"] { border-color: rgba(18, 107, 89, 0.32); }
+
+@media (max-width: 860px) {
+  .app-header,
+  .search-form,
+  .state-panel { display: grid; grid-template-columns: 1fr; }
+  .context-fields { display: grid; grid-template-columns: 1fr 1fr; }
+  .field-small { width: auto; }
+  .app-shell { width: min(100% - 20px, 560px); padding-top: 14px; }
+  .search-form { position: sticky; top: 0; z-index: 2; box-shadow: 0 8px 22px rgba(17, 21, 18, 0.07); }
+  .search-form > .search-button { margin-top: 0; }
+  h1 { font-size: 24px; }
+}

@@ -1,0 +1,34 @@
+body[data-loading="true"] .search-button span::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+.skeleton-card { min-height: 132px; }
+.skeleton-lines { display: grid; gap: 9px; align-content: start; padding-top: 2px; }
+
+.skeleton-line,
+.skeleton-total,
+.skeleton-dot {
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--surface-soft), #f7f9f6, var(--surface-soft));
+  background-size: 220% 100%;
+  animation: pulse 1200ms ease-in-out infinite;
+}
+
+.skeleton-line { width: 68%; height: 12px; }
+.skeleton-line.wide { width: 88%; }
+.skeleton-line.short { width: 42%; }
+.skeleton-total { width: 118px; height: 28px; justify-self: end; }
+.skeleton-dot { width: 34px; height: 34px; }
+
+@media (max-width: 860px) {
+  .skeleton-total { justify-self: start; }
+}

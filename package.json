@@ -1,0 +1,14 @@
+{
+  "name": "search-for-pay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "node src/server.js",
+    "check": "node scripts/check-js.js && node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

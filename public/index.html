@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SearchForPay</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="offers.css">
+    <link rel="stylesheet" href="providers.css">
+    <link rel="stylesheet" href="history.css">
+    <link rel="stylesheet" href="alerts.css">
+    <link rel="stylesheet" href="loading.css">
+    <link rel="stylesheet" href="motion.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="brand">SearchForPay</p>
+          <h1>Comparador por custo total</h1>
+        </div>
+        <span class="health" data-health>Verificando API</span>
+      </header>
+
+      <form class="search-form" data-search-form>
+        <label class="field field-product">
+          <span>Produto</span>
+          <input id="query" name="query" type="search" autocomplete="off" placeholder="Nome do produto" aria-describedby="query-help" required>
+          <small id="query-help">Termo enviado aos provedores reais configurados.</small>
+        </label>
+
+        <label class="field">
+          <span>CEP</span>
+          <input id="postalCode" name="postalCode" inputmode="numeric" autocomplete="postal-code" placeholder="CEP de entrega" aria-describedby="postal-help" required>
+          <small id="postal-help">Usado para calcular frete e imposto.</small>
+        </label>
+
+        <div class="context-fields" aria-label="Contexto da busca">
+          <label class="field field-small">
+            <span>Pais</span>
+            <select name="country" autocomplete="country" required>
+              <option value="BR" selected>BR Brasil</option>
+              <option value="US">US Estados Unidos</option>
+              <option value="CA">CA Canada</option>
+              <option value="MX">MX Mexico</option>
+              <option value="AR">AR Argentina</option>
+              <option value="CL">CL Chile</option>
+              <option value="CO">CO Colombia</option>
+              <option value="PT">PT Portugal</option>
+              <option value="ES">ES Espanha</option>
+              <option value="FR">FR Franca</option>
+              <option value="DE">DE Alemanha</option>
+              <option value="IT">IT Italia</option>
+              <option value="NL">NL Holanda</option>
+              <option value="GB">GB Reino Unido</option>
+              <option value="AU">AU Australia</option>
+              <option value="JP">JP Japao</option>
+            </select>
+          </label>
+
+          <label class="field field-small">
+            <span>Moeda</span>
+            <select name="currency" required>
+              <option value="BRL" selected>BRL Real</option>
+              <option value="USD">USD Dolar</option>
+              <option value="EUR">EUR Euro</option>
+              <option value="GBP">GBP Libra</option>
+              <option value="CAD">CAD Dolar canadense</option>
+              <option value="MXN">MXN Peso mexicano</option>
+              <option value="ARS">ARS Peso argentino</option>
+              <option value="CLP">CLP Peso chileno</option>
+              <option value="COP">COP Peso colombiano</option>
+              <option value="AUD">AUD Dolar australiano</option>
+              <option value="JPY">JPY Iene</option>
+            </select>
+          </label>
+        </div>
+
+        <button class="search-button" type="submit">
+          <span data-button-label>Buscar ofertas</span>
+        </button>
+      </form>
+
+      <section class="state-panel" data-state data-state-kind="empty" role="status" aria-live="polite" tabindex="-1">
+        <strong data-state-title>Nenhuma busca executada</strong>
+        <span data-state-message>Informe produto e CEP para consultar provedores configurados.</span>
+      </section>
+
+      <section class="memory-grid" aria-label="Historico e preferencias locais">
+        <section class="memory-panel" aria-label="Preferencias salvas">
+          <div class="section-head">
+            <h2>Preferencias</h2>
+            <button class="quiet-button" type="button" data-apply-preferences disabled>Usar</button>
+          </div>
+          <dl class="preference-list" data-preferences></dl>
+        </section>
+
+        <section class="memory-panel history-panel" aria-label="Ultimas buscas">
+          <div class="section-head">
+            <h2>Ultimas buscas</h2>
+            <button class="quiet-button" type="button" data-clear-history disabled>Limpar</button>
+          </div>
+          <div class="history-list" data-history-list></div>
+        </section>
+      </section>
+
+      <section class="alerts-panel" aria-label="Alertas de preco">
+        <div class="section-head">
+          <h2>Alertas de preco</h2>
+          <button class="quiet-button" type="button" data-refresh-alerts>Atualizar</button>
+        </div>
+        <form class="alert-form" data-alert-form>
+          <label class="field">
+            <span>Custo total alvo</span>
+            <input name="targetTotal" inputmode="decimal" placeholder="Ex: 3500,00" required>
+          </label>
+          <button class="quiet-button" type="submit">Criar alerta</button>
+        </form>
+        <p class="alert-status" data-alert-status role="status" aria-live="polite"></p>
+        <div class="alert-list" data-alert-list></div>
+      </section>
+
+      <section class="compare-grid" data-main aria-busy="false" hidden>
+        <section class="offers-panel" aria-label="Tres melhores ofertas">
+          <div class="section-head">
+            <h2>Top 3 ofertas</h2>
+            <span data-result-count></span>
+          </div>
+          <div class="results" data-results aria-live="polite"></div>
+        </section>
+
+        <aside class="providers-panel" aria-label="Relatorio de provedores consultados">
+          <div class="section-head">
+            <h2>Provedores</h2>
+          </div>
+          <div class="provider-list" data-provider-report></div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>

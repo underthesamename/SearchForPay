@@ -1,0 +1,21 @@
+.providers-panel { padding: 12px; }
+
+.provider-item {
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.provider-item:first-child { border-top: 0; }
+
+.provider-item span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.provider-item[data-status="ok"] strong { color: var(--accent); }
+
+.provider-item[data-status="failed"] strong,
+.provider-item[data-status="configuration_error"] strong { color: var(--danger); }
