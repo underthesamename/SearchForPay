@@ -1,13 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { ValidationError } from '../../shared/errors.js';
 import { normalizeCurrencyCode } from '../../shared/validation.js';
-import { createSearchRequest } from '../search/searchModels.js';
+import { createSearchRequest, SEARCH_MODES } from '../search/searchModels.js';
+import { normalizeAlertCandidateTarget } from './priceAlertCandidateModel.js';
 
 export const PRICE_ALERT_MODEL = Object.freeze({
   name: 'PriceAlert',
-  version: 1,
+  version: 2,
   requiredFields: Object.freeze([
     'id',
+    'sourceType',
     'search.query',
     'search.context.postalCode',
     'targetTotalCost.amountCents',
@@ -62,13 +64,22 @@ export function maskPostalCode(postalCode) {
   return normalized.length > 3 ? `CEP final ${normalized.slice(-3)}` : 'CEP salvo';
 }
 
+function alertSearch(input) {
+  const source = isPlainObject(input.search) ? input.search : input;
+  return createSearchRequest({
+    ...source,
+    searchMode: SEARCH_MODES.WEB_RESEARCH
+  });
+}
+
 export function normalizePriceAlert(input = {}, options = {}) {
   if (!isPlainObject(input)) {
     throw new ValidationError('Alerta de preco invalido.');
   }
 
   const now = options.now || new Date();
-  const search = createSearchRequest(input.search || input);
+  const search = alertSearch(input);
+  const candidateTarget = normalizeAlertCandidateTarget(input);
   const targetCurrency = normalizeCurrencyCode(
     input.targetCurrency || input.targetTotalCost?.currency || search.context.currency
   );
@@ -85,7 +96,9 @@ export function normalizePriceAlert(input = {}, options = {}) {
     model: PRICE_ALERT_MODEL.name,
     modelVersion: PRICE_ALERT_MODEL.version,
     status: input.status === 'paused' ? 'paused' : 'active',
+    sourceType: candidateTarget ? 'candidate' : 'search',
     search,
+    candidateTarget,
     targetTotalCost: {
       amountCents: targetAmountCents({
         ...input,
@@ -97,6 +110,7 @@ export function normalizePriceAlert(input = {}, options = {}) {
     createdAt,
     updatedAt,
     lastCheckedAt: input.lastCheckedAt || null,
+    lastVerification: isPlainObject(input.lastVerification) ? input.lastVerification : null,
     lastMatchAt: input.lastMatchAt || null,
     lastResult: isPlainObject(input.lastResult) ? input.lastResult : null
   };
@@ -114,8 +128,10 @@ export function toPublicPriceAlert(alert) {
   return {
     id: alert.id,
     status: alert.status,
+    sourceType: alert.sourceType,
     query: alert.search.query,
     normalizedQuery: alert.search.normalizedQuery,
+    candidateTarget: alert.candidateTarget,
     context: {
       country: alert.search.context.country,
       currency: alert.search.context.currency,
@@ -126,6 +142,7 @@ export function toPublicPriceAlert(alert) {
     createdAt: alert.createdAt,
     updatedAt: alert.updatedAt,
     lastCheckedAt: alert.lastCheckedAt,
+    lastVerification: alert.lastVerification,
     lastMatchAt: alert.lastMatchAt,
     lastResult: alert.lastResult
   };

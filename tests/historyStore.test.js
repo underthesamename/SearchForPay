@@ -22,7 +22,8 @@ test('historico local salva ultimas buscas e preferencias reutilizaveis', () => 
     query: 'Monitor',
     postalCode: '01001000',
     country: 'BR',
-    currency: 'BRL'
+    currency: 'BRL',
+    comparisonCriteria: 'mais_confiavel'
   });
 
   const history = memory.loadHistory();
@@ -31,9 +32,11 @@ test('historico local salva ultimas buscas e preferencias reutilizaveis', () => 
   assert.equal(history.length, 1);
   assert.equal(history[0].query, 'Monitor');
   assert.equal(history[0].postalCode, '01001000');
+  assert.equal(history[0].comparisonCriteria, 'mais_confiavel');
   assert.equal(preferences.postalCode, '01001000');
   assert.equal(preferences.country, 'BR');
   assert.equal(preferences.currency, 'BRL');
+  assert.equal(preferences.comparisonCriteria, 'mais_confiavel');
   assert.equal('query' in preferences, false);
 });
 
@@ -60,6 +63,22 @@ test('historico local deduplica busca e limita tamanho', () => {
 
   assert.equal(history.length, 6);
   assert.equal(history[0].query, 'Produto 7');
+});
+
+test('historico local permite apagar historico sem apagar preferencias', () => {
+  const memory = createSearchMemory(createStorage());
+
+  memory.saveSearch({
+    query: 'Monitor',
+    postalCode: '01001000',
+    country: 'BR',
+    currency: 'BRL',
+    comparisonCriteria: 'menor_prazo'
+  });
+
+  assert.equal(memory.clearHistory().length, 0);
+  assert.equal(memory.loadHistory().length, 0);
+  assert.equal(memory.loadPreferences().comparisonCriteria, 'menor_prazo');
 });
 
 test('historico local mascara CEP em resumos de UI', () => {

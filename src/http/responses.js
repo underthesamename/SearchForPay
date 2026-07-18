@@ -1,4 +1,5 @@
 import { toPublicError } from '../shared/errors.js';
+import { sanitizePublicPayload } from '../shared/publicSanitizer.js';
 import { securityHeaders } from './securityHeaders.js';
 
 export function sendJson(response, statusCode, payload, options = {}) {
@@ -11,7 +12,7 @@ export function sendJson(response, statusCode, payload, options = {}) {
     'cache-control': options.cacheControl || 'no-store',
     ...(options.headers || {})
   }));
-  response.end(JSON.stringify(payload));
+  response.end(JSON.stringify(sanitizePublicPayload(payload)));
 }
 
 export function sendError(response, error, options = {}) {

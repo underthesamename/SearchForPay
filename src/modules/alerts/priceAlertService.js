@@ -1,67 +1,51 @@
-import { toPublicError, NotFoundError } from '../../shared/errors.js';
+import { NotFoundError, ServiceUnavailableError } from '../../shared/errors.js';
 import { createPriceAlert, toPublicPriceAlert } from './priceAlertModel.js';
+import {
+  failedResult,
+  resultFromCandidateRevalidation,
+  resultFromSearchPayload
+} from './priceAlertEvaluation.js';
 
 function nextRunAt(now, intervalMs) {
   return new Date(now.getTime() + intervalMs).toISOString();
 }
 
-function publicBestOffer(offer) {
-  if (!offer) {
-    return null;
+export function createPriceAlertService({
+  store,
+  searchService,
+  candidateRevalidationService,
+  defaultIntervalMs,
+  now = () => new Date()
+}) {
+  async function checkCandidate(alert, checkedAt) {
+    if (!candidateRevalidationService) {
+      throw new ServiceUnavailableError('Revalidacao OpenAI Web Search para candidato nao esta configurada.');
+    }
+
+    const revalidation = await candidateRevalidationService.revalidate({
+      candidate: alert.candidateTarget,
+      query: alert.search.query,
+      context: alert.search.context
+    });
+
+    return resultFromCandidateRevalidation(alert, revalidation, checkedAt);
   }
 
-  return {
-    providerName: offer.providerName,
-    productTitle: offer.productTitle,
-    productUrl: offer.productUrl,
-    seller: offer.seller,
-    totalCost: offer.totalCost,
-    price: offer.price,
-    shipping: offer.shipping,
-    taxes: offer.taxes
-  };
-}
-
-function successResult(alert, payload, checkedAt) {
-  const bestOffer = payload.results?.[0] || null;
-  const targetMet = Boolean(
-    bestOffer &&
-    bestOffer.totalCost?.currency === alert.targetTotalCost.currency &&
-    bestOffer.totalCost.amountCents <= alert.targetTotalCost.amountCents
-  );
-
-  return {
-    status: targetMet ? 'target_met' : 'target_not_met',
-    checkedAt,
-    message: targetMet
-      ? 'Preco alvo atingido por oferta real revalidada.'
-      : 'Preco alvo ainda nao foi atingido por oferta real revalidada.',
-    bestOffer: publicBestOffer(bestOffer),
-    providerReports: payload.meta?.providerReports || []
-  };
-}
-
-function failedResult(error, checkedAt) {
-  const publicError = toPublicError(error);
-
-  return {
-    status: 'failed',
-    checkedAt,
-    message: publicError.message,
-    error: {
-      code: publicError.code,
-      details: publicError.details
+  async function checkSearch(alert, checkedAt) {
+    if (!searchService) {
+      throw new ServiceUnavailableError('OpenAI Web Search nao esta configurada para rechecagem de alerta.');
     }
-  };
-}
 
-export function createPriceAlertService({ store, searchService, defaultIntervalMs, now = () => new Date() }) {
+    return resultFromSearchPayload(alert, await searchService.search(alert.search), checkedAt);
+  }
+
   async function recheck(alert) {
     const checkedAt = now();
+    const checkedAtIso = checkedAt.toISOString();
     const baseUpdate = {
       ...alert,
-      updatedAt: checkedAt.toISOString(),
-      lastCheckedAt: checkedAt.toISOString(),
+      updatedAt: checkedAtIso,
+      lastCheckedAt: checkedAtIso,
       schedule: {
         ...alert.schedule,
         nextRunAt: nextRunAt(checkedAt, alert.schedule.intervalMs)
@@ -69,18 +53,21 @@ export function createPriceAlertService({ store, searchService, defaultIntervalM
     };
 
     try {
-      const payload = await searchService.search(alert.search);
-      const lastResult = successResult(alert, payload, checkedAt.toISOString());
+      const lastResult = alert.candidateTarget
+        ? await checkCandidate(alert, checkedAtIso)
+        : await checkSearch(alert, checkedAtIso);
+      const lastVerification = lastResult.lastVerification ?? alert.lastVerification;
 
       return {
         ...baseUpdate,
+        lastVerification,
         lastMatchAt: lastResult.status === 'target_met' ? checkedAt.toISOString() : alert.lastMatchAt,
         lastResult
       };
     } catch (error) {
       return {
         ...baseUpdate,
-        lastResult: failedResult(error, checkedAt.toISOString())
+        lastResult: failedResult(error, checkedAtIso)
       };
     }
   }
@@ -102,8 +89,9 @@ export function createPriceAlertService({ store, searchService, defaultIntervalM
 
     async createAlert(input) {
       const alert = createPriceAlert(input, { now: now(), defaultIntervalMs });
-      await store.saveAlert(alert);
-      return toPublicPriceAlert(alert);
+      const checked = await recheck(alert);
+      await store.saveAlert(checked);
+      return toPublicPriceAlert(checked);
     },
 
     async removeAlert(id) {

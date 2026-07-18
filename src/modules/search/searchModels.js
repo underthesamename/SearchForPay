@@ -5,6 +5,12 @@ import {
   validateProductQuery
 } from '../../shared/validation.js';
 import { validateOffer } from '../offers/offerValidation.js';
+import { assertValidVerifiedOffer } from './searchContracts.js';
+
+export const SEARCH_MODES = Object.freeze({
+  WEB_RESEARCH: 'web_research',
+  LEGACY_PROVIDERS: 'legacy_providers'
+});
 
 export const SEARCH_REQUEST_MODEL = Object.freeze({
   name: 'SearchRequest',
@@ -14,14 +20,15 @@ export const SEARCH_REQUEST_MODEL = Object.freeze({
     'normalizedQuery',
     'context.postalCode',
     'context.country',
-    'context.currency'
+    'context.currency',
+    'searchMode'
   ])
 });
 
 export const SEARCH_RESULT_MODEL = Object.freeze({
   name: 'SearchResult',
   version: 1,
-  requiredFields: Object.freeze(['query', 'normalizedQuery', 'context', 'results', 'meta'])
+  requiredFields: Object.freeze(['query', 'normalizedQuery', 'context', 'results', 'meta', 'searchMode'])
 });
 
 function isPlainObject(value) {
@@ -38,6 +45,16 @@ function normalizeCountry(value) {
   return country;
 }
 
+function normalizeSearchMode(value) {
+  const searchMode = String(value || SEARCH_MODES.WEB_RESEARCH).trim().toLowerCase();
+
+  if (!Object.values(SEARCH_MODES).includes(searchMode)) {
+    throw new ValidationError('searchMode invalido para a busca.');
+  }
+
+  return searchMode;
+}
+
 export function createSearchRequest(input = {}) {
   const context = isPlainObject(input.context) ? input.context : {};
   const query = validateProductQuery(input.query);
@@ -50,6 +67,7 @@ export function createSearchRequest(input = {}) {
   return {
     query,
     normalizedQuery: query.toLowerCase(),
+    searchMode: normalizeSearchMode(input.searchMode || context.searchMode),
     context: {
       postalCode,
       country: normalizeCountry(context.country || input.country || 'BR'),
@@ -58,16 +76,22 @@ export function createSearchRequest(input = {}) {
   };
 }
 
-export function createSearchResult({ request, results, meta }) {
+export function createSearchResult({ request, results, meta, webCandidates = [] }) {
   if (!Array.isArray(results)) {
     throw new ConfigurationError('SearchResult exige results em array.');
   }
 
-  for (const offer of results) {
-    const validation = validateOffer(offer, {
-      expectedCurrency: request.context.currency
-    });
+  if (!Array.isArray(webCandidates)) {
+    throw new ConfigurationError('SearchResult exige webCandidates em array.');
+  }
 
+  for (const offer of results) {
+    if (request.searchMode === SEARCH_MODES.WEB_RESEARCH) {
+      assertValidVerifiedOffer(offer, { expectedCurrency: request.context.currency });
+      continue;
+    }
+
+    const validation = validateOffer(offer, { expectedCurrency: request.context.currency });
     if (!validation.valid) {
       throw new ConfigurationError('SearchResult recebeu oferta invalida.', {
         errors: validation.errors
@@ -78,8 +102,10 @@ export function createSearchResult({ request, results, meta }) {
   return {
     query: request.query,
     normalizedQuery: request.normalizedQuery,
+    searchMode: request.searchMode,
     context: request.context,
     results,
+    webCandidates,
     meta: {
       ...meta,
       model: SEARCH_RESULT_MODEL.name,

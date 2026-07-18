@@ -1,3 +1,5 @@
+import { redactSensitiveText } from '../shared/publicSanitizer.js';
+
 function routeLabel(pathname) {
   if (/^\/api\/alerts\/[^/]+\/check$/.test(pathname)) {
     return '/api/alerts/:id/check';
@@ -22,7 +24,7 @@ export function createSafeLogger(options = {}) {
     sink.info?.({
       event: 'http_request',
       method: event.method,
-      route: routeLabel(event.pathname),
+      route: redactSensitiveText(routeLabel(event.pathname)),
       statusCode: event.statusCode,
       durationMs: event.durationMs,
       cache: event.cache,

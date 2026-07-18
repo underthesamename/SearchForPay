@@ -1,6 +1,6 @@
 .memory-grid {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -8,23 +8,24 @@
 .memory-panel {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--surface-raised);
   padding: 12px;
 }
 
 .quiet-button {
-  min-height: 32px;
+  min-height: 36px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--canvas);
+  background: var(--surface);
   color: var(--ink);
   cursor: pointer;
   font: inherit;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 760;
   padding: 0 10px;
+  transition: border-color 160ms ease, transform 120ms ease, background 160ms ease;
 }
-
+.quiet-button:hover { border-color: var(--line-strong); background: var(--surface-raised); }
 .quiet-button:disabled { cursor: not-allowed; opacity: 0.48; }
 
 .preference-list,
@@ -35,10 +36,9 @@
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
 }
-
-.preference-row dd { margin: 0; color: var(--ink); font-weight: 700; }
+.preference-row dd { margin: 0; color: var(--ink); font-weight: 760; }
 
 .history-item {
   display: grid;
@@ -47,16 +47,14 @@
   min-height: 48px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--canvas);
+  background: var(--surface);
   color: var(--ink);
   cursor: pointer;
   font: inherit;
   padding: 9px 10px;
   text-align: left;
 }
-
-.history-item:hover,
-.quiet-button:hover { border-color: var(--line-strong); }
+.history-item:hover { border-color: var(--accent); }
 
 .history-item span,
 .memory-empty {
@@ -66,6 +64,6 @@
   margin: 0;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 920px) {
   .memory-grid { grid-template-columns: 1fr; }
 }

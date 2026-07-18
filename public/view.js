@@ -1,6 +1,8 @@
 import { renderOffer, renderProviderReports, renderSkeletonCards } from './compareRender.js';
+import { renderWebCandidates } from './webCandidatesRender.js';
 
 const results = document.querySelector('[data-results]');
+const webCandidates = document.querySelector('[data-web-candidates]');
 const mainPanel = document.querySelector('[data-main]');
 const resultCount = document.querySelector('[data-result-count]');
 const providerReport = document.querySelector('[data-provider-report]');
@@ -12,13 +14,19 @@ const button = document.querySelector('[data-search-form] button');
 const buttonLabel = document.querySelector('[data-button-label]');
 
 export function setHealth(enabledCount) {
+  if (typeof enabledCount === 'object' && enabledCount?.mode === 'web_research') {
+    healthBadge.textContent = enabledCount.openAiEnabled ? 'Web Search ativo' : 'Web Search inativo';
+    healthBadge.dataset.status = enabledCount.openAiEnabled ? 'ok' : 'warn';
+    return;
+  }
+
   if (enabledCount === null) {
     healthBadge.textContent = 'Offline';
     healthBadge.dataset.status = 'error';
     return;
   }
 
-  healthBadge.textContent = enabledCount ? `${enabledCount} provedores ativos` : 'Sem provedor ativo';
+  healthBadge.textContent = enabledCount ? `${enabledCount} provedores legados ativos` : 'Sem provedor legado ativo';
   healthBadge.dataset.status = enabledCount ? 'ok' : 'warn';
 }
 
@@ -42,42 +50,77 @@ export function setComparisonVisible(isVisible) {
 export function setLoading(isLoading) {
   button.disabled = isLoading;
   button.setAttribute('aria-disabled', String(isLoading));
-  buttonLabel.textContent = isLoading ? 'Buscando' : 'Buscar ofertas';
+  buttonLabel.textContent = isLoading ? 'Pesquisando' : 'Pesquisar na web';
 }
 
 export function clearResults() {
   results.replaceChildren();
+  webCandidates.replaceChildren();
   providerReport.replaceChildren();
   resultCount.textContent = '';
 }
 
 export function renderLoading() {
   clearResults();
-  resultCount.textContent = 'Consultando';
+  delete mainPanel.dataset.mode;
+  resultCount.textContent = 'Pesquisando';
   renderSkeletonCards(results, providerReport);
   setComparisonVisible(true);
 }
 
+function reportsFromMeta(meta = {}) {
+  return [
+    ...(meta.providerReports || []),
+    ...(meta.webResearch ? [meta.webResearch] : [])
+  ];
+}
+
 export function renderResults(payload) {
   clearResults();
+  delete mainPanel.dataset.mode;
   const offers = (payload.results || []).slice(0, 3);
-  renderProviderReports(providerReport, payload.meta?.providerReports || []);
+  const candidates = payload.webCandidates || [];
+  renderProviderReports(providerReport, reportsFromMeta(payload.meta));
+  renderWebCandidates(webCandidates, candidates);
   setComparisonVisible(true);
 
   if (!offers.length) {
-    setState('empty', 'Nenhuma oferta valida', 'Os provedores responderam, mas nenhuma oferta completa entrou no ranking.');
+    resultCount.textContent = candidates.length ? '0 ofertas validas' : '';
+    setState(
+      candidates.length ? 'warning' : 'empty',
+      candidates.length ? 'Candidatos incompletos' : 'Sem candidatos verificaveis',
+      candidates.length
+        ? 'A busca achou candidatos na web, mas eles ainda precisam de custo completo ou confirmacao.'
+        : 'A pesquisa terminou sem fonte HTTPS com preco visivel e evidencia suficiente.'
+    );
     return;
   }
 
   resultCount.textContent = `${offers.length} resultado(s)`;
   results.append(...offers.map(renderOffer));
-  setState('success', 'Ranking atualizado', 'Produto, frete e imposto vieram dos provedores reais.');
+  setState('success', 'Ofertas completas', stateMessageForSuccess(payload, candidates));
+}
+
+function stateMessageForSuccess(payload, candidates) {
+  if (payload.meta?.rankingSource === 'openai_web_search') {
+    return 'O ranking usa ofertas completas verificadas por pesquisa web. Confirme no site antes de comprar.';
+  }
+
+  if (candidates.length) {
+    return 'Resultados legados ficam no ranking; candidatos web aparecem separados para conferencia.';
+  }
+
+  return 'Produto, frete e imposto vieram de fonte legada configurada.';
 }
 
 export function renderSearchError(payload) {
   clearResults();
-  const reports = payload.error?.details?.providers || [];
+  const reports = [
+    ...(payload.error?.details?.providers || []),
+    ...(payload.error?.details?.webResearch ? [payload.error.details.webResearch] : [])
+  ];
   renderProviderReports(providerReport, reports);
+  mainPanel.dataset.mode = reports.length > 0 ? 'report' : 'empty';
   setComparisonVisible(reports.length > 0);
   setState('error', 'Busca nao concluida', errorMessage(payload, reports));
 }
@@ -85,9 +128,23 @@ export function renderSearchError(payload) {
 function errorMessage(payload, reports) {
   const message = payload.error?.message || 'Nao foi possivel buscar ofertas agora.';
 
-  if (payload.error?.code === 'SERVICE_UNAVAILABLE' && reports.length === 0) {
-    return `${message} Configure ao menos um provedor real no ambiente.`;
+  if (payload.error?.code === 'SERVICE_UNAVAILABLE' && hasRateLimitReport(reports)) {
+    return `${firstReportMessage(reports) || message} Aguarde alguns minutos ou revise os limites/billing da OpenAI antes de tentar novamente.`;
+  }
+
+  if (payload.error?.code === 'SERVICE_UNAVAILABLE') {
+    return `${message} Ative a pesquisa web e configure a chave OpenAI no ambiente do servidor.`;
   }
 
   return message;
+}
+
+function firstReportMessage(reports) {
+  return reports
+    .map((report) => String(report?.message || '').trim())
+    .find(Boolean);
+}
+
+function hasRateLimitReport(reports) {
+  return /limite|rate limit|429/i.test(JSON.stringify(reports));
 }

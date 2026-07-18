@@ -1,4 +1,5 @@
 import { createSearchPayload } from '../modules/search/searchController.js';
+import { sanitizePublicPayload } from '../shared/publicSanitizer.js';
 import { createSearchCacheKey } from './responseCache.js';
 import { sendJson } from './responses.js';
 
@@ -9,6 +10,7 @@ export async function handleCachedSearchRequest({
   searchCache,
   defaultCountry,
   defaultCurrency,
+  defaultSearchMode,
   logState
 }) {
   const cacheKey = createSearchCacheKey({ url, defaultCountry, defaultCurrency });
@@ -25,12 +27,13 @@ export async function handleCachedSearchRequest({
   }
 
   logState.cache = 'MISS';
-  const payload = await createSearchPayload({
+  const payload = sanitizePublicPayload(await createSearchPayload({
     url,
     searchService,
     defaultCountry,
-    defaultCurrency
-  });
+    defaultCurrency,
+    defaultSearchMode
+  }));
   searchCache.set(cacheKey, payload);
 
   return sendJson(response, 200, payload, {

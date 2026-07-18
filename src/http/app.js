@@ -9,7 +9,10 @@ import {
 import { startPriceAlertJob } from '../modules/alerts/priceAlertJob.js';
 import { createPriceAlertService } from '../modules/alerts/priceAlertService.js';
 import { createPriceAlertStore } from '../modules/alerts/priceAlertStore.js';
+import { createCandidateRevalidationService } from '../modules/ai-search/candidateRevalidationService.js';
+import { createProductResearchService } from '../modules/ai-search/productResearchService.js';
 import { createProviderRegistry } from '../modules/providers/providerRegistry.js';
+import { handleCandidateRevalidationRequest } from '../modules/search/candidateRevalidationController.js';
 import { createSearchService } from '../modules/search/searchService.js';
 import { createRateLimiter } from './rateLimiter.js';
 import { createResponseCache } from './responseCache.js';
@@ -27,19 +30,27 @@ export function createApp(options = {}) {
     providerNames: env.marketplaceProviders,
     providerOptions: env.providerOptions
   });
+  const productResearchService = options.productResearchService || createProductResearchService({
+    openAiConfig: env.providerOptions.openaiweb
+  });
+  const candidateRevalidationService = options.candidateRevalidationService || createCandidateRevalidationService({
+    productResearchService
+  });
   const searchService = options.searchService || createSearchService({
     providerRegistry,
-    maxResults: env.maxResults
+    maxResults: env.maxResults,
+    productResearchService,
+    candidateRevalidationService
   });
   const alertStore = options.alertStore || createPriceAlertStore({ filePath: env.priceAlertsFile });
   const alertService = options.alertService || createPriceAlertService({
     store: alertStore,
     searchService,
+    candidateRevalidationService,
     defaultIntervalMs: env.priceAlertRecheckIntervalMs
   });
   const alertJob = options.startJobs && env.priceAlertsEnabled
-    ? startPriceAlertJob({ alertService, cadenceMs: env.priceAlertJobIntervalMs })
-    : undefined;
+    ? startPriceAlertJob({ alertService, cadenceMs: env.priceAlertJobIntervalMs }) : undefined;
   const rateLimiter = options.rateLimiter || createRateLimiter({
     enabled: env.rateLimitEnabled,
     windowMs: env.rateLimitWindowMs,
@@ -83,9 +94,7 @@ export function createApp(options = {}) {
           logState
         });
 
-        if (blocked) {
-          return undefined;
-        }
+        if (blocked) return undefined;
       }
       if (request.method === 'GET' && url.pathname === '/health') {
         return sendJson(response, 200, createHealthPayload({ providerRegistry, env, alertJob }));
@@ -98,11 +107,20 @@ export function createApp(options = {}) {
           searchCache,
           defaultCountry: env.defaultCountry,
           defaultCurrency: env.defaultCurrency,
+          defaultSearchMode: env.searchMode,
           logState
         });
       }
       if (request.method === 'GET' && url.pathname === '/api/alerts') {
         return await handleListAlertsRequest({ response, alertService });
+      }
+      if (request.method === 'POST' && url.pathname === '/api/candidates/revalidate') {
+        return await handleCandidateRevalidationRequest({
+          request,
+          response,
+          candidateRevalidationService,
+          bodyLimitBytes: env.requestBodyLimitBytes
+        });
       }
       if (request.method === 'POST' && url.pathname === '/api/alerts') {
         return await handleCreateAlertRequest({
@@ -124,16 +142,11 @@ export function createApp(options = {}) {
       if (request.method === 'GET') {
         const served = await serveStaticFile({ url, response, publicDir });
 
-        if (served) {
-          return undefined;
-        }
+        if (served) return undefined;
       }
 
       return sendJson(response, 404, {
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Rota nao encontrada.'
-        }
+        error: { code: 'NOT_FOUND', message: 'Rota nao encontrada.' }
       });
     } catch (error) {
       return sendError(response, error);

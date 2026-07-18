@@ -9,6 +9,16 @@ const SUPPORTED_CURRENCIES = new Set([
   'BRL', 'USD', 'EUR', 'GBP', 'CAD', 'MXN',
   'ARS', 'CLP', 'COP', 'AUD', 'JPY'
 ]);
+const SUPPORTED_COMPARISON_CRITERIA = new Set([
+  'custo_total_confirmado',
+  'mais_confiavel',
+  'menor_prazo'
+]);
+
+function cleanComparisonCriteria(value) {
+  const criteria = String(value || 'custo_total_confirmado').trim();
+  return SUPPORTED_COMPARISON_CRITERIA.has(criteria) ? criteria : 'custo_total_confirmado';
+}
 
 function safeRead(storage, key, fallback) {
   try {
@@ -41,24 +51,26 @@ function cleanSearch(input = {}) {
   const postalCode = String(input.postalCode || '').trim();
   const country = String(input.country || '').trim().toUpperCase();
   const currency = String(input.currency || '').trim().toUpperCase();
+  const comparisonCriteria = cleanComparisonCriteria(input.comparisonCriteria);
 
   if (!query || !postalCode || !SUPPORTED_COUNTRIES.has(country) || !SUPPORTED_CURRENCIES.has(currency)) {
     return undefined;
   }
 
-  return { query, postalCode, country, currency };
+  return { query, postalCode, country, currency, comparisonCriteria };
 }
 
 function cleanPreferences(input = {}) {
   const postalCode = String(input.postalCode || '').trim();
   const country = String(input.country || '').trim().toUpperCase();
   const currency = String(input.currency || '').trim().toUpperCase();
+  const comparisonCriteria = cleanComparisonCriteria(input.comparisonCriteria);
 
   if (!postalCode || !SUPPORTED_COUNTRIES.has(country) || !SUPPORTED_CURRENCIES.has(currency)) {
     return undefined;
   }
 
-  return { postalCode, country, currency };
+  return { postalCode, country, currency, comparisonCriteria };
 }
 
 function sameSearch(left, right) {
@@ -66,7 +78,8 @@ function sameSearch(left, right) {
     left.query.toLowerCase() === right.query.toLowerCase() &&
     left.postalCode === right.postalCode &&
     left.country === right.country &&
-    left.currency === right.currency
+    left.currency === right.currency &&
+    left.comparisonCriteria === right.comparisonCriteria
   );
 }
 
@@ -75,7 +88,8 @@ function createId(search) {
     search.query.toLowerCase(),
     search.postalCode,
     search.country,
-    search.currency
+    search.currency,
+    search.comparisonCriteria
   ].join('|');
 }
 
@@ -112,6 +126,7 @@ export function createSearchMemory(storage = defaultStorage()) {
       postalCode: search.postalCode,
       country: search.country,
       currency: search.currency,
+      comparisonCriteria: search.comparisonCriteria,
       updatedAt: entry.searchedAt
     });
 

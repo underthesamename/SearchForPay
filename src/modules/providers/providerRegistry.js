@@ -17,6 +17,19 @@ function normalizeProviderName(name) {
   return String(name || '').trim().toLowerCase();
 }
 
+function disabledProvider(name, providerOptions) {
+  const options = providerOptions[name] || {};
+
+  if (name === 'openaiweb' && options.enabled !== true) {
+    return {
+      providerName: name,
+      reason: options.disabledReason || 'OPENAI_SEARCH_ENABLED=false.'
+    };
+  }
+
+  return undefined;
+}
+
 export function registerProviderAdapter(name, factory) {
   const normalizedName = normalizeProviderName(name);
 
@@ -30,8 +43,13 @@ export function registerProviderAdapter(name, factory) {
 export function createProviderRegistry({ providerNames = [], providerOptions = {} } = {}) {
   const configuredProviderNames = [...new Set(providerNames.map(normalizeProviderName).filter(Boolean))];
   const unknownProviders = configuredProviderNames.filter((name) => !adapterFactories.has(name));
-  const enabledProviders = configuredProviderNames
+  const disabledProviders = configuredProviderNames
     .filter((name) => adapterFactories.has(name))
+    .map((name) => disabledProvider(name, providerOptions))
+    .filter(Boolean);
+  const disabledProviderNames = new Set(disabledProviders.map((provider) => provider.providerName));
+  const enabledProviders = configuredProviderNames
+    .filter((name) => adapterFactories.has(name) && !disabledProviderNames.has(name))
     .map((name) => ensureProviderContract(adapterFactories.get(name)(providerOptions[name] || {})));
 
   return {
@@ -41,6 +59,10 @@ export function createProviderRegistry({ providerNames = [], providerOptions = {
 
     getUnknownProviders() {
       return unknownProviders;
+    },
+
+    getDisabledProviders() {
+      return disabledProviders;
     },
 
     getEnabledProviders() {

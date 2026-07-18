@@ -12,9 +12,16 @@ function singleSearchParam(url, name) {
   return values[0] || null;
 }
 
-export async function createSearchPayload({ url, searchService, defaultCountry, defaultCurrency }) {
+export async function createSearchPayload({
+  url,
+  searchService,
+  defaultCountry,
+  defaultCurrency,
+  defaultSearchMode = 'web_research'
+}) {
   const searchRequest = createSearchRequest({
     query: singleSearchParam(url, 'query'),
+    searchMode: singleSearchParam(url, 'searchMode') || defaultSearchMode,
     context: {
       postalCode: singleSearchParam(url, 'postalCode'),
       country: singleSearchParam(url, 'country') || defaultCountry,
@@ -24,8 +31,21 @@ export async function createSearchPayload({ url, searchService, defaultCountry, 
   return searchService.search(searchRequest);
 }
 
-export async function handleSearchRequest({ url, response, searchService, defaultCountry, defaultCurrency }) {
-  const payload = await createSearchPayload({ url, searchService, defaultCountry, defaultCurrency });
+export async function handleSearchRequest({
+  url,
+  response,
+  searchService,
+  defaultCountry,
+  defaultCurrency,
+  defaultSearchMode
+}) {
+  const payload = await createSearchPayload({
+    url,
+    searchService,
+    defaultCountry,
+    defaultCurrency,
+    defaultSearchMode
+  });
 
   return sendJson(response, 200, payload);
 }

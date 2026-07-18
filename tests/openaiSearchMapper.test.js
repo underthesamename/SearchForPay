@@ -8,38 +8,34 @@ const searchRequest = Object.freeze({
   context: { postalCode: '01001000', country: 'BR', currency: 'BRL' }
 });
 
-function money(amountCents, field) {
-  return {
-    amountCents,
-    evidenceUrl: `https://example.com/${field}`,
-    evidenceText: `${field} informado pela fonte consultada.`
-  };
-}
-
 function candidate(overrides = {}) {
   return {
-    title: 'Notebook com evidencia real',
-    sellerName: 'Vendedor informado pela fonte',
+    productTitle: 'Notebook com evidencia real',
+    storeName: 'Fonte informada pela web',
     productUrl: 'https://example.com/notebook',
-    currency: 'BRL',
-    availability: 'available',
-    price: money(250000, 'preco'),
+    visiblePrice: { amountCents: 250000, currency: 'BRL' },
     shipping: {
-      ...money(1800, 'frete'),
       exposed: true,
+      amountCents: 1800,
+      currency: 'BRL',
       warning: null
     },
-    taxes: money(3200, 'imposto'),
-    delivery: {
-      minDays: 2,
-      maxDays: 5,
-      evidenceUrl: 'https://example.com/frete',
-      evidenceText: 'Prazo informado pela fonte consultada.'
+    taxes: {
+      exposed: true,
+      amountCents: 3200,
+      currency: 'BRL',
+      warning: null
     },
-    confidenceLevel: 'high',
-    confidenceReasons: ['Campos obrigatorios tinham evidencia.'],
-    rejected: false,
-    rejectionReason: null,
+    evidence: [{
+      url: 'https://example.com/notebook',
+      title: 'Pagina consultada do notebook',
+      snippet: 'Trecho curto com preco e detalhes consultados na fonte.',
+      accessedAt: '2026-07-18T12:00:00.000Z'
+    }],
+    confidence: 'high',
+    warnings: ['Dados vieram de pesquisa web e precisam ser conferidos no site.'],
+    availability: 'available',
+    delivery: { minDays: 2, maxDays: 5 },
     ...overrides
   };
 }
@@ -50,7 +46,12 @@ test('openaiweb mapper descarta candidato com imposto desconhecido', () => {
     payload: {
       candidates: [
         candidate({
-          taxes: { amountCents: null, evidenceUrl: null, evidenceText: null }
+          taxes: {
+            exposed: false,
+            amountCents: null,
+            currency: null,
+            warning: 'Imposto nao confirmado pela fonte web.'
+          }
         })
       ]
     }
@@ -61,19 +62,18 @@ test('openaiweb mapper descarta candidato com imposto desconhecido', () => {
   assert.equal(result.report.candidatesRejected, 1);
 });
 
-test('openaiweb mapper aceita frete nao exposto apenas com aviso claro', () => {
+test('openaiweb mapper deixa frete nao exposto fora de oferta final', () => {
   const warning = 'Frete nao exposto pela fonte web; subtotal conhecido.';
   const result = normalizeOpenAiWebCandidates({
     searchRequest,
     payload: {
       candidates: [
         candidate({
-          confidenceLevel: 'medium',
+          confidence: 'medium',
           shipping: {
-            amountCents: null,
             exposed: false,
-            evidenceUrl: null,
-            evidenceText: null,
+            amountCents: null,
+            currency: null,
             warning
           }
         })
@@ -81,14 +81,8 @@ test('openaiweb mapper aceita frete nao exposto apenas com aviso claro', () => {
     }
   });
 
-  assert.equal(result.offers.length, 1);
-  assert.deepEqual(result.offers[0].shipping, {
-    amountCents: 0,
-    currency: 'BRL',
-    exposed: false,
-    warning
-  });
-  assert.ok(result.offers[0].warnings.includes(warning));
+  assert.equal(result.offers.length, 0);
+  assert.equal(result.report.candidatesRejected, 1);
 });
 
 test('openaiweb mapper mantem candidato indisponivel fora do ranking', () => {

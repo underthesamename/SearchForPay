@@ -11,8 +11,14 @@ function formField(form, name) {
   return form.elements.namedItem(name);
 }
 
+const CRITERIA_LABELS = Object.freeze({
+  custo_total_confirmado: 'Custo total confirmado',
+  mais_confiavel: 'Mais confiavel',
+  menor_prazo: 'Menor prazo'
+});
+
 function applySearchToForm(form, search, shouldFocusQuery = false) {
-  for (const fieldName of ['query', 'postalCode', 'country', 'currency']) {
+  for (const fieldName of ['query', 'postalCode', 'country', 'currency', 'comparisonCriteria']) {
     const field = formField(form, fieldName);
 
     if (field && search[fieldName]) {
@@ -37,7 +43,8 @@ function renderPreferences(preferences) {
   for (const [label, value] of [
     ['CEP', maskPostalCode(preferences.postalCode)],
     ['Pais', preferences.country],
-    ['Moeda', preferences.currency]
+    ['Moeda', preferences.currency],
+    ['Comparacao', CRITERIA_LABELS[preferences.comparisonCriteria] || 'Custo total confirmado']
   ]) {
     const row = el('div', 'preference-row');
     row.append(el('dt', '', label), el('dd', '', value));
@@ -59,7 +66,7 @@ function renderHistory(history) {
     item.type = 'button';
     item.dataset.historyIndex = String(index);
     item.append(el('strong', '', search.query));
-    item.append(el('span', '', `${maskPostalCode(search.postalCode)} / ${search.country} / ${search.currency}`));
+    item.append(el('span', '', `${maskPostalCode(search.postalCode)} / ${search.country} / ${search.currency} / ${CRITERIA_LABELS[search.comparisonCriteria]}`));
     historyList.append(item);
   });
 }

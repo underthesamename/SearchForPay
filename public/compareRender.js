@@ -1,4 +1,5 @@
 import { el, formatMoney } from './dom.js';
+import { encodeAlertCandidate } from './alertCandidatePayload.js';
 
 function appendBreakdown(parent, totalCost) {
   const list = el('dl', 'breakdown');
@@ -17,6 +18,22 @@ function appendBreakdown(parent, totalCost) {
     list.append(row);
   }
 
+  parent.append(list);
+}
+
+function appendEvidence(parent, evidence = []) {
+  if (!evidence.length) return;
+
+  const list = el('ul', 'evidence-list compact-evidence');
+  for (const item of evidence.slice(0, 3)) {
+    const entry = el('li');
+    const link = el('a', '', item.title || item.url);
+    link.href = item.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    entry.append(link, el('span', '', item.snippet || 'Fonte consultada.'));
+    list.append(entry);
+  }
   parent.append(list);
 }
 
@@ -39,22 +56,47 @@ function confidenceText(offer) {
   return `Confianca ${label}: ${evidenceCount} evidencia(s) verificadas antes do ranking.`;
 }
 
+function offerBadgeText(offer) {
+  return offer.searchMode === 'web_research' ? 'Oferta completa verificada na web' : 'Oferta verificada por provedor legado';
+}
+
+function verifiedText(offer) {
+  return offer.lastVerifiedAt
+    ? `Ultima revalidacao: ${new Date(offer.lastVerifiedAt).toLocaleString('pt-BR')}.`
+    : '';
+}
+
+function actionRow(offer, link) {
+  const row = el('div', 'item-actions');
+  const revalidateButton = el('button', 'quiet-button', 'Revalidar');
+  const alertButton = el('button', 'quiet-button', 'Criar alerta');
+
+  revalidateButton.type = 'button';
+  revalidateButton.dataset.revalidateCandidate = encodeAlertCandidate(offer);
+  revalidateButton.setAttribute('aria-label', `Revalidar oferta: ${offer.productTitle}`);
+  alertButton.type = 'button';
+  alertButton.dataset.alertCandidate = encodeAlertCandidate(offer);
+  alertButton.setAttribute('aria-label', `Criar alerta para oferta: ${offer.productTitle}`);
+  row.append(link, revalidateButton, alertButton);
+  return row;
+}
+
 export function renderOffer(offer, index) {
   const card = el('article', 'result-card');
   const body = el('div', 'offer-body');
   const meta = [offer.seller?.name, offer.providerName, offer.source?.name].filter(Boolean).join(' / ');
   const totalBlock = el('div', 'total-block');
-  const link = el('a', 'offer-link', 'Abrir oferta real');
+  const link = el('a', 'offer-link', 'Confirmar no site da loja');
 
   link.href = offer.productUrl;
   link.target = '_blank';
   link.rel = 'noopener noreferrer';
-  link.setAttribute('aria-label', `Abrir oferta real: ${offer.productTitle}`);
+  link.setAttribute('aria-label', `Confirmar oferta no site da loja: ${offer.productTitle}`);
   totalBlock.append(
     el('strong', 'total-price', formatMoney(offer.totalCost)),
     el('span', 'total-label', offer.totalCost?.complete === false ? 'subtotal conhecido' : 'custo total')
   );
-  body.append(el('h3', '', offer.productTitle), el('p', 'meta', meta));
+  body.append(el('span', 'verification-badge', offerBadgeText(offer)), el('h3', '', offer.productTitle), el('p', 'meta', meta));
   appendBreakdown(body, offer.totalCost);
 
   for (const warning of uniqueWarnings(offer)) {
@@ -63,6 +105,9 @@ export function renderOffer(offer, index) {
 
   if (confidenceText(offer)) {
     body.append(el('p', 'confidence-line', confidenceText(offer)));
+  }
+  if (verifiedText(offer)) {
+    body.append(el('p', 'meta', verifiedText(offer)));
   }
 
   if (offer.ranking?.criteria?.delivery) {
@@ -73,7 +118,8 @@ export function renderOffer(offer, index) {
     body.append(el('p', 'explanation', offer.ranking.explanation));
   }
 
-  body.append(link);
+  appendEvidence(body, offer.evidence || offer.verification?.evidence || []);
+  body.append(actionRow(offer, link));
   card.append(el('div', 'rank', String(index + 1)), body, totalBlock);
   return card;
 }
@@ -88,7 +134,7 @@ export function renderSkeletonCards(results, providerReport) {
     results.append(card);
   }
 
-  providerReport.append(el('p', 'muted-line', 'Consultando provedores configurados.'));
+  providerReport.append(el('p', 'muted-line', 'Pesquisando e verificando evidencias na web.'));
 }
 
 export function renderProviderReports(providerReport, reports = []) {
@@ -107,6 +153,10 @@ export function renderProviderReports(providerReport, reports = []) {
 
 function providerSummary(report) {
   if (report.status === 'ok') {
+    if (report.providerName === 'openaiweb' || report.revalidationRequired) {
+      return `${report.totalCandidatesFound || 0} candidatos / ${report.verifiedOffers || 0} ofertas completas`;
+    }
+
     const summary = `${report.validOffers} validas / ${report.invalidOffers} ignoradas`;
 
     if (Number.isInteger(report.candidatesExtracted)) {

@@ -6,18 +6,20 @@
     <title>SearchForPay</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="offers.css">
+    <link rel="stylesheet" href="webCandidates.css">
     <link rel="stylesheet" href="providers.css">
     <link rel="stylesheet" href="history.css">
     <link rel="stylesheet" href="alerts.css">
     <link rel="stylesheet" href="loading.css">
     <link rel="stylesheet" href="motion.css">
+    <link rel="stylesheet" href="responsive.css">
   </head>
   <body>
     <main class="app-shell">
       <header class="app-header">
         <div>
           <p class="brand">SearchForPay</p>
-          <h1>Comparador por custo total</h1>
+          <h1>Pesquisa de ofertas verificaveis</h1>
         </div>
         <span class="health" data-health>Verificando API</span>
       </header>
@@ -26,13 +28,13 @@
         <label class="field field-product">
           <span>Produto</span>
           <input id="query" name="query" type="search" autocomplete="off" placeholder="Nome do produto" aria-describedby="query-help" required>
-          <small id="query-help">Termo enviado aos provedores reais configurados.</small>
+          <small id="query-help">Termo usado para pesquisar evidencias reais na web.</small>
         </label>
 
         <label class="field">
           <span>CEP</span>
           <input id="postalCode" name="postalCode" inputmode="numeric" autocomplete="postal-code" placeholder="CEP de entrega" aria-describedby="postal-help" required>
-          <small id="postal-help">Usado para calcular frete e imposto.</small>
+          <small id="postal-help">Usado como contexto quando frete ou imposto dependerem da entrega.</small>
         </label>
 
         <div class="context-fields" aria-label="Contexto da busca">
@@ -74,16 +76,43 @@
               <option value="JPY">JPY Iene</option>
             </select>
           </label>
+
+          <label class="field field-small">
+            <span>Comparacao</span>
+            <select name="comparisonCriteria" required>
+              <option value="custo_total_confirmado" selected>Custo total</option>
+              <option value="mais_confiavel">Mais confiavel</option>
+              <option value="menor_prazo">Menor prazo</option>
+            </select>
+          </label>
         </div>
 
         <button class="search-button" type="submit">
-          <span data-button-label>Buscar ofertas</span>
+          <span data-button-label>Pesquisar na web</span>
         </button>
       </form>
 
       <section class="state-panel" data-state data-state-kind="empty" role="status" aria-live="polite" tabindex="-1">
         <strong data-state-title>Nenhuma busca executada</strong>
-        <span data-state-message>Informe produto e CEP para consultar provedores configurados.</span>
+        <span data-state-message>Informe produto e CEP para pesquisar evidencias na web.</span>
+      </section>
+
+      <section class="compare-grid" data-main aria-busy="false" hidden>
+        <section class="offers-panel" aria-label="Ofertas completas e candidatos">
+          <div class="section-head">
+            <h2>Ofertas completas</h2>
+            <span data-result-count></span>
+          </div>
+          <div class="results" data-results aria-live="polite"></div>
+          <div class="web-candidates" data-web-candidates aria-live="polite"></div>
+        </section>
+
+        <aside class="providers-panel" aria-label="Relatorio da pesquisa">
+          <div class="section-head">
+            <h2>Pesquisa</h2>
+          </div>
+          <div class="provider-list" data-provider-report></div>
+        </aside>
       </section>
 
       <section class="memory-grid" aria-label="Historico e preferencias locais">
@@ -118,23 +147,6 @@
         </form>
         <p class="alert-status" data-alert-status role="status" aria-live="polite"></p>
         <div class="alert-list" data-alert-list></div>
-      </section>
-
-      <section class="compare-grid" data-main aria-busy="false" hidden>
-        <section class="offers-panel" aria-label="Tres melhores ofertas">
-          <div class="section-head">
-            <h2>Top 3 ofertas</h2>
-            <span data-result-count></span>
-          </div>
-          <div class="results" data-results aria-live="polite"></div>
-        </section>
-
-        <aside class="providers-panel" aria-label="Relatorio de provedores consultados">
-          <div class="section-head">
-            <h2>Provedores</h2>
-          </div>
-          <div class="provider-list" data-provider-report></div>
-        </aside>
       </section>
     </main>
 

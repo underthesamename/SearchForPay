@@ -23,6 +23,12 @@ function parseProviderList(value) {
     .filter(Boolean);
 }
 
+function normalizeSearchMode(value) {
+  const searchMode = cleanString(value || 'web_research').toLowerCase();
+
+  return searchMode === 'legacy_providers' ? 'legacy_providers' : 'web_research';
+}
+
 function parseDotEnvLine(line) {
   const trimmed = line.trim();
 
@@ -109,12 +115,23 @@ function getLomadeeConfig(source, requestTimeoutMs) {
 }
 
 function getOpenAiWebConfig(source, requestTimeoutMs) {
+  const enabledByFlag = parseBoolean(source.OPENAI_SEARCH_ENABLED, false);
+  const apiKey = cleanString(source.OPENAI_API_KEY);
+
   return {
-    apiKey: cleanString(source.OPENAI_API_KEY),
+    enabled: enabledByFlag && Boolean(apiKey),
+    disabledReason: enabledByFlag ? 'OPENAI_API_KEY ausente.' : 'OPENAI_SEARCH_ENABLED=false.',
+    apiKey,
     responsesUrl: cleanString(source.OPENAI_RESPONSES_URL),
     model: cleanString(source.OPENAI_SEARCH_MODEL || 'gpt-5.6'),
-    searchLimit: parseInteger(source.OPENAI_SEARCH_LIMIT, 6),
-    requestTimeoutMs: parseInteger(source.OPENAI_REQUEST_TIMEOUT_MS, requestTimeoutMs),
+    contextSize: cleanString(source.OPENAI_SEARCH_CONTEXT_SIZE || 'high'),
+    maxCandidates: parseInteger(source.OPENAI_SEARCH_MAX_CANDIDATES || source.OPENAI_SEARCH_LIMIT, 8),
+    requestTimeoutMs: parseInteger(
+      source.OPENAI_SEARCH_TIMEOUT_MS || source.OPENAI_REQUEST_TIMEOUT_MS,
+      15000
+    ),
+    rateLimitWindowMs: parseInteger(source.OPENAI_SEARCH_RATE_LIMIT_WINDOW_MS, 60 * 1000),
+    rateLimitMaxRequests: parseInteger(source.OPENAI_SEARCH_RATE_LIMIT_MAX_REQUESTS, 30),
     storeResponses: cleanString(source.OPENAI_STORE_RESPONSES || 'false')
   };
 }
@@ -131,6 +148,7 @@ export function getEnv(source = process.env, options = {}) {
     port: parseInteger(mergedSource.PORT, 3000),
     defaultCountry: mergedSource.DEFAULT_COUNTRY || 'BR',
     defaultCurrency: mergedSource.DEFAULT_CURRENCY || 'BRL',
+    searchMode: normalizeSearchMode(mergedSource.SEARCH_MODE),
     requestTimeoutMs,
     maxResults: parseInteger(mergedSource.MAX_RESULTS, 3),
     requestBodyLimitBytes: parseInteger(mergedSource.REQUEST_BODY_LIMIT_BYTES, 16_384),

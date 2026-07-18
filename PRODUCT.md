@@ -2,145 +2,94 @@
 
 ## Visao
 
-SearchForPay e uma ferramenta de comparacao de ofertas reais de produtos na internet. O produto consulta fontes de compra confiaveis, normaliza as respostas, calcula o custo total de cada oferta e mostra ao usuario as 3 melhores opcoes encontradas.
+SearchForPay e uma ferramenta completa de pesquisa e verificacao de ofertas na web. O motor principal e OpenAI Web Search pela Responses API, usado para localizar paginas reais, extrair candidatos, registrar evidencias clicaveis e ajudar o usuario a confirmar a compra no site original da loja.
 
-A promessa central nao e "achar o menor preco de vitrine"; e encontrar a melhor oferta considerando produto, frete e imposto de forma transparente.
+A promessa central nao e precisao absoluta nem menor preco garantido. A promessa e reduzir ruido: separar candidato, evidencia, custo completo, custo incompleto e necessidade de confirmacao antes de chamar algo de oferta final.
+
+## Principios
+
+- Nao usar APIs de lojas, marketplaces, afiliados ou feeds comerciais.
+- Nao inventar loja, preco, frete, imposto, disponibilidade ou URL.
+- Nao chamar candidato incompleto de oferta final.
+- Frete desconhecido nao vira zero.
+- Imposto desconhecido nao vira zero.
+- Toda informacao precisa ter evidencia clicavel quando possivel.
+- Paginas mudam; a SearchForPay mostra evidencias, data de captura, avisos e caminho de confirmacao.
 
 ## Publico
 
 - Pessoas que pesquisam produtos online antes de comprar.
-- Usuarios que querem comparar lojas sem abrir muitas abas.
-- Compradores que precisam entender o custo real antes de decidir.
-- Futuramente, usuarios avancados que querem acompanhar variacao de preco ou disponibilidade.
+- Usuarios que querem comparar achados da web sem abrir muitas abas.
+- Compradores que precisam enxergar preco, frete, imposto, disponibilidade e confianca antes de decidir.
+- Usuarios avancados que querem historico, alertas e revalidacao de oportunidades.
 
-## Problema
+## Estados Do Produto
 
-Comparadores comuns podem destacar um preco inicial baixo e esconder custos que mudam a decisao final, como frete, imposto, disponibilidade ou erro de loja. A SearchForPay existe para reduzir esse ruido: uma oferta so deve aparecer quando o sistema consegue confirmar os componentes essenciais do custo total em uma fonte real.
+`candidato encontrado`: resultado bruto localizado pela busca web. Tem produto, URL ou trecho promissor, mas ainda nao possui dados suficientes para comparacao.
 
-## Fluxo Principal Do Usuario
+`candidato verificavel`: possui URL HTTPS clicavel, loja identificavel e evidencia legivel para pelo menos produto e preco. Ainda pode faltar frete, imposto, disponibilidade ou confirmacao.
 
-1. O usuario informa o produto que deseja buscar.
-2. Quando necessario para calcular frete ou imposto, o usuario informa contexto de compra, como CEP, pais e moeda.
-3. A API consulta apenas provedores reais configurados no ambiente.
-4. Cada provedor retorna ofertas normalizadas no contrato do projeto.
-5. O sistema valida cada oferta recebida.
-6. Ofertas invalidas sao descartadas e contabilizadas em metadados.
-7. O sistema calcula o custo total de cada oferta valida.
-8. As ofertas validas sao ordenadas pelo menor custo total.
-9. A interface apresenta ate 3 melhores opcoes, com separacao entre preco do produto, frete, imposto e custo total.
-10. Se nao houver provedor real configurado, ou se nenhum provedor retornar oferta valida, a API falha de forma clara.
+`oferta completa`: candidato verificavel com produto, loja, URL HTTPS, preco, frete, imposto, moeda, disponibilidade e evidencias suficientes para compor custo total. Pode entrar no ranking principal, sempre com aviso de que a loja deve ser conferida antes da compra.
 
-## Oferta Valida
+`custo incompleto`: candidato com preco real visivel, mas frete ou imposto ausente, desconhecido, dinamico ou dependente de checkout. Aparece separado do ranking de ofertas completas.
 
-Uma oferta valida e uma resposta vinda de um provedor real configurado que atende, no minimo, aos criterios abaixo.
+`precisa confirmacao`: candidato cuja evidencia nao resolve algum ponto decisivo, como preco dinamico, cupom, variacao, estoque, regiao, frete ou imposto. A interface deve levar o usuario ao site da loja.
 
-Campos obrigatorios:
+`indisponivel`: pagina ou evidencia indica produto fora de estoque, link quebrado, compra indisponivel, preco removido ou informacao conflitante que impede comparacao honesta.
 
-- `providerName`: nome do provedor real configurado.
-- `source.type`: tipo de fonte real, como `api`, `feed`, `affiliate` ou `partner`.
-- `source.name`: nome da fonte real de onde a oferta veio.
-- `productTitle`: nome real do produto retornado pela fonte.
-- `productUrl`: URL HTTPS real e acessivel da pagina de compra ou detalhe do produto.
-- `seller.name`: nome real da loja ou vendedor.
-- `price.amountCents`: preco do produto em centavos.
-- `price.currency`: moeda do preco, com codigo de 3 letras.
-- `shipping.amountCents`: frete calculado ou confirmado em centavos.
-- `shipping.currency`: mesma moeda do preco.
-- `taxes.amountCents`: impostos calculados ou confirmados em centavos.
-- `taxes.currency`: mesma moeda do preco.
+## Fluxo Completo
 
-Regras de validade:
+1. Busca: o usuario informa produto, pais, moeda e contexto de entrega quando necessario.
+2. Pesquisa web: OpenAI Web Search localiza paginas de produto, comparativos publicos e fontes com evidencias.
+3. Evidencias: cada candidato recebe links, titulos, trechos, horario de captura e campo evidenciado.
+4. Normalizacao: o sistema extrai campos estruturados sem completar lacunas por chute.
+5. Classificacao de estado: cada item vira candidato encontrado, candidato verificavel, oferta completa, custo incompleto, precisa confirmacao ou indisponivel.
+6. Ranking: somente ofertas completas sao ordenadas por custo total. Candidatos incompletos ficam em secoes proprias.
+7. Historico: cada busca salva consulta, filtros, estados, evidencias, avisos e data de captura para comparacao futura.
+8. Alertas: o usuario define alvo de custo total. O alerta so dispara como oferta quando uma revalidacao encontra oferta completa dentro do alvo.
+9. Revalidacao: buscas salvas e alertas sao pesquisados novamente, com nova evidencia e novo estado.
+10. Confirmacao no site da loja: antes da compra, o usuario abre a evidencia principal para confirmar preco, frete, imposto, estoque e condicoes finais.
 
-- A oferta precisa vir de API, feed, integracao parceira ou fonte real permitida.
-- `providerName` precisa bater com o provedor real configurado que retornou a oferta.
-- Valores monetarios precisam ser inteiros em centavos e maiores ou iguais a zero.
-- `price.amountCents` precisa ser maior que zero.
-- Preco, frete e imposto precisam usar a mesma moeda.
-- Frete desconhecido nao pode ser tratado como zero.
-- Imposto desconhecido nao pode ser tratado como zero.
-- Loja, produto, URL, preco, frete ou imposto nao podem ser inventados.
-- Erros de provedor nao podem expor token, chave, credencial ou dado pessoal.
-- Se um provedor nao conseguir calcular frete ou imposto com base real, a oferta deve ser descartada ou marcada como erro pelo adaptador.
+## Evidencias
 
-Campos recomendados para melhorar confianca e ordenacao futura:
+Uma evidencia valida deve registrar, quando possivel:
 
-- `seller.reputationScore`: reputacao quando a fonte fornecer esse dado.
-- `delivery.minDays` e `delivery.maxDays`: prazo estimado quando calculado pela fonte.
-- `availability`: disponibilidade real quando fornecida pelo provedor.
-- `capturedAt`: horario em que a oferta foi capturada.
+- URL HTTPS clicavel.
+- Titulo da pagina ou fonte.
+- Trecho curto que justifica o campo extraido.
+- Campo sustentado pela evidencia: produto, preco, frete, imposto, disponibilidade ou loja.
+- `capturedAt` ou `accessedAt`.
 
-## Fontes Reais
+Se um campo importante nao tiver evidencia, ele deve aparecer como ausente, desconhecido ou pendente. O produto pode continuar util como candidato, mas nao como oferta completa.
 
-Fontes reais sao integracoes capazes de retornar dados verificaveis de compra. Para o MVP, uma fonte so deve ser aceita quando houver adaptador real registrado em `src/modules/providers/` e ativacao explicita por configuracao.
+## Ranking
 
-Fontes aceitas:
-
-- APIs oficiais de marketplaces ou lojas.
-- Feeds comerciais, afiliados ou parceiros com permissao de uso.
-- Integracoes que retornem preco, frete e imposto de forma rastreavel.
-
-Fontes nao aceitas:
-
-- Dados inseridos manualmente para simular resultado.
-- Lojas falsas.
-- Precos estimados sem origem real.
-- Frete ou imposto preenchido por chute.
-- Mock de desenvolvimento exibido ao usuario final.
-- Scraping fragil ou nao permitido pelos termos da fonte.
-
-## Calculo De Custo Total
-
-O custo total e a base do ranking:
+O ranking principal usa apenas `oferta completa`.
 
 ```text
 custo_total = preco_do_produto + frete + imposto
 ```
 
-No contrato atual, o calculo usa:
+Regras:
 
-- `price.amountCents`
-- `shipping.amountCents`
-- `taxes.amountCents`
+- Preco, frete e imposto precisam usar a mesma moeda.
+- Frete e imposto precisam ser valores reais evidenciados ou claramente calculados a partir da pagina da loja.
+- Itens com custo incompleto nao disputam posicao com ofertas completas.
+- Em empate, o sistema pode usar disponibilidade, qualidade da evidencia, recencia e confianca da pagina.
+- Resultado patrocinado, afiliado ou comercial nao deve alterar ranking sem rotulo explicito; no posicionamento atual, a SearchForPay nao usa feeds afiliados.
 
-O resultado deve preservar a moeda da oferta e expor o detalhamento:
+## Historico
 
-- produto
-- frete
-- imposto
-- total
+O historico guarda a trilha da pesquisa, nao uma verdade permanente. Cada registro deve conter consulta, contexto publico da busca, estado dos candidatos, evidencias, avisos, custo total quando completo e data de captura. Dados sensiveis, como CEP completo, nao devem aparecer em logs ou respostas publicas sem mascara.
 
-Uma oferta com preco menor pode perder posicao se o frete ou imposto tornar o custo total maior.
+## Alertas E Revalidacao
 
-## Alertas De Preco
+Alertas usam a mesma regra da busca: reconsultar a web, capturar novas evidencias, reclassificar estados e comparar apenas ofertas completas contra o alvo. Quando a melhor oportunidade estiver em `custo incompleto` ou `precisa confirmacao`, o alerta pode avisar que ha candidato promissor, mas nao pode anunciar uma oferta final.
 
-O alerta de preco salva a busca do usuario, o contexto de entrega e um custo total alvo na mesma moeda da busca. O criterio de disparo e objetivo: a melhor oferta valida de uma reconsulta real precisa ter `totalCost.amountCents` menor ou igual ao alvo salvo.
+## Limites Declarados
 
-O alerta nao cria historico artificial, nao estima queda e nao preenche preco ausente. Cada verificacao chama os provedores reais configurados pelo motor de busca, passa pelas mesmas validacoes de oferta valida e registra apenas o status publico da ultima revalidacao.
-
-## Limites Do MVP
-
-O MVP deve provar que a SearchForPay consegue buscar ofertas reais, validar dados essenciais e ranquear por custo total.
-
-Incluido no MVP:
-
-- Busca por texto.
-- Contexto minimo para frete e imposto, como CEP quando aplicavel.
-- Moeda do contexto da busca para evitar comparar ofertas em moedas diferentes.
-- Registro de provedores reais por configuracao.
-- Contrato unico de oferta normalizada.
-- Validacao contra ofertas incompletas.
-- Ranking das 3 melhores ofertas por custo total.
-- Erro claro quando nao houver provedor real configurado.
-- Interface simples para executar busca e visualizar resultados.
-
-Fora do MVP:
-
-- Checkout dentro da SearchForPay.
-- Conta de usuario.
-- Historico longitudinal de preco.
-- Notificacao externa por email, push ou WhatsApp.
-- Recomendacao personalizada por perfil.
-- Estoque garantido apos o momento da consulta.
-- Cobertura de todos os marketplaces.
-- Comparacao baseada em cashback, cupom privado ou pontos, a menos que a fonte real retorne esses dados de forma confiavel.
-- Qualquer resultado ficticio para "preencher a tela".
+- A SearchForPay nao faz checkout.
+- A SearchForPay nao garante estoque depois da captura.
+- A SearchForPay nao garante cobertura de todas as lojas.
+- A SearchForPay nao substitui a confirmacao no site da loja.
+- Sem OpenAI Web Search configurado, o produto deve falhar de forma clara em vez de preencher a tela com dados falsos.

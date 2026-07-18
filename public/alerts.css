@@ -4,6 +4,7 @@
   background: var(--surface);
   padding: 12px;
   margin-bottom: 16px;
+  box-shadow: var(--shadow-soft);
 }
 
 .alert-form {
@@ -25,8 +26,9 @@
   gap: 12px;
   align-items: center;
   border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
   border-radius: 6px;
-  background: var(--canvas);
+  background: var(--surface-inset);
   padding: 10px;
 }
 
@@ -38,11 +40,18 @@
 
 .alert-body span,
 .alert-result,
-.alert-status {
+.alert-status,
+.alert-evidence {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.35;
   margin: 0;
+}
+
+.alert-evidence {
+  width: fit-content;
+  color: var(--accent);
+  font-weight: 760;
 }
 
 .alert-actions {
@@ -51,15 +60,15 @@
   align-items: center;
 }
 
-.alert-item[data-alert-status="target_met"] {
-  border-color: rgba(18, 107, 89, 0.34);
+.alert-status-chip {
+  background: var(--surface);
+  color: var(--muted);
 }
-
+.alert-item[data-alert-status="target_met"] { border-left-color: var(--success); }
+.alert-item[data-alert-status="pending"] { border-left-color: var(--warning); }
+.alert-item[data-alert-status="failed"] { border-left-color: var(--danger); }
 .alert-item[data-alert-status="target_met"] strong,
-.alert-status[data-status="ok"] {
-  color: var(--accent);
-}
-
+.alert-status[data-status="ok"] { color: var(--success); }
 .alert-status[data-status="error"] { color: var(--danger); }
 .alert-status[data-status="loading"] { color: var(--warning); }
 

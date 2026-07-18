@@ -1,0 +1,16 @@
+@media (max-width: 920px) {
+  .app-shell { width: min(100% - 20px, 680px); padding-top: 14px; }
+  .app-header,
+  .search-form,
+  .state-panel { grid-template-columns: 1fr; align-items: start; }
+  .app-header { display: grid; }
+  .context-fields { grid-template-columns: 1fr 1fr; }
+  .search-form > .search-button { margin-top: 0; }
+  h1 { font-size: 24px; }
+}
+
+@media (max-width: 520px) {
+  .app-shell { width: min(100% - 14px, 520px); }
+  .context-fields { grid-template-columns: 1fr; }
+  .health { width: fit-content; }
+}

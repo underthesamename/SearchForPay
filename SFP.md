@@ -1,6 +1,9 @@
+A SearchForPay e uma ferramenta de pesquisa e verificacao de ofertas na web. Ela usa OpenAI Web Search como motor principal para localizar paginas reais, reunir evidencias clicaveis e ajudar o usuario a comparar candidatos antes de comprar.
 
-A SearchForPay é uma nova ferramnta de facil navegacao e uso de comparacao de precos produtos da internet, ela ultiliza api de sites de vendas e usa diversas formas de procura de produto para reunir em um so lugar e comparar precos afim de apresentar a melhor oferta para o usuario.
+O produto nao deve depender de APIs de lojas, marketplaces, afiliados ou feeds comerciais. O sistema deve pesquisar fontes publicas da web, extrair apenas informacoes visiveis e manter cada campo ligado a evidencia quando possivel.
 
-ela deve varrer fontes confiaveis de compras, analisar cuiadosamente e montar as 3 melhores opcoes, isso levando tambem em consideracao o valor de frete e imposto, que é uma das coisas que mais impacta na hora de comprar produtos pela internet atualmente, para isso use um sistema estruturado.
+O objetivo nao e prometer o menor preco absoluto. O objetivo e reduzir o ruido da pesquisa: separar candidatos encontrados, candidatos verificaveis, ofertas completas, custos incompletos, itens que precisam de confirmacao e itens indisponiveis.
 
-para o sistema nao deve ser usado dados ficticios, ela deve fucionar como ferramenta ativa e responsiva com cada usuario.
+Uma oferta completa so pode existir quando produto, loja, URL HTTPS, preco visivel, frete, imposto, moeda, disponibilidade e evidencia forem confirmados. Frete desconhecido nao vira zero. Imposto desconhecido nao vira zero. Candidato incompleto continua como candidato, nao como oferta final.
+
+A ferramenta deve ser ativa e responsiva para cada usuario, com historico local, alertas por revalidacao real, ranking honesto e confirmacao final no site da loja.

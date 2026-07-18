@@ -1,171 +1,145 @@
 import { RANKING_RULES, TOP_OFFER_LIMIT, rankOffers } from '../offers/offerRanker.js';
-import { validateOffer } from '../offers/offerValidation.js';
-import { ensureProviderContract } from '../providers/contract.js';
-import { AppError, ServiceUnavailableError } from '../../shared/errors.js';
-import { createSearchRequest, createSearchResult } from './searchModels.js';
+import { ServiceUnavailableError } from '../../shared/errors.js';
+import { createSearchRequest, createSearchResult, SEARCH_MODES } from './searchModels.js';
+import {
+  collectProviderOffers,
+  getMarketplaceProviders,
+  runMarketplaceProviders
+} from './providerSearchIntegration.js';
+import { runWebResearch } from './webResearchIntegration.js';
+import {
+  rankVerifiedOffers,
+  WEB_CANDIDATE_RANKING_RULES,
+  WEB_RANKING_RULES
+} from './searchContracts.js';
 
-function publicProviderError(providerName, error) {
-  if (error instanceof AppError && error.code === 'CONFIGURATION_ERROR') {
-    return {
-      providerName,
-      status: 'configuration_error',
-      message: error.message,
-      details: error.details
-    };
+const EMPTY_PROVIDER_REGISTRY = Object.freeze({
+  getUnknownProviders: () => [],
+  getDisabledProviders: () => [],
+  getEnabledProviders: () => []
+});
+
+function webResearchFailure(webResearch) {
+  return webResearch.report.status !== 'ok';
+}
+
+function disabledProviders(providerRegistry) {
+  return providerRegistry.getDisabledProviders?.() || [];
+}
+
+function unavailableOpenAiError(webResearch, providerRegistry) {
+  return new ServiceUnavailableError('OpenAI Web Search nao esta disponivel para buscar produtos.', {
+    searchMode: SEARCH_MODES.WEB_RESEARCH,
+    disabledProviders: disabledProviders(providerRegistry),
+    webResearch: webResearch.report
+  });
+}
+
+async function runWebResearchMode({ request, productResearchService, candidateRevalidationService, providerRegistry, maxResults }) {
+  const webResearch = await runWebResearch({ productResearchService, request, candidateRevalidationService });
+
+  if (webResearchFailure(webResearch)) {
+    throw unavailableOpenAiError(webResearch, providerRegistry);
   }
 
-  return {
-    providerName,
-    status: 'failed',
-    message: 'Provedor indisponivel ou resposta invalida.'
-  };
+  const results = rankVerifiedOffers(webResearch.verifiedOffers, {
+    limit: Math.min(maxResults, TOP_OFFER_LIMIT),
+    expectedCurrency: request.context.currency
+  });
+
+  return createSearchResult({
+    request,
+    results,
+    webCandidates: webResearch.candidates,
+    meta: {
+      generatedAt: new Date().toISOString(),
+      normalizedQuery: request.normalizedQuery,
+      currency: request.context.currency,
+      searchMode: SEARCH_MODES.WEB_RESEARCH,
+      rankingRules: WEB_RANKING_RULES,
+      webCandidateRankingRules: WEB_CANDIDATE_RANKING_RULES,
+      rankingSource: 'openai_web_search',
+      providersQueried: 0,
+      offersAnalyzed: webResearch.verifiedOffers.length,
+      invalidOffersIgnored: 0,
+      providerReports: [],
+      webResearch: webResearch.report
+    }
+  });
 }
 
-function publicProviderReport({ providerName, offersReceived, validOffers, invalidOffers, ...report }) {
-  return {
-    providerName,
-    status: 'ok',
-    offersReceived,
-    validOffers,
-    invalidOffers,
-    ...report
-  };
-}
+async function runLegacyProviderMode({ request, providerRegistry, maxResults }) {
+  const unknownProviders = providerRegistry.getUnknownProviders();
+  const disabled = disabledProviders(providerRegistry);
 
-function isPlainObject(value) {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
-
-function sanitizeProviderReport(report) {
-  if (!isPlainObject(report)) {
-    return {};
+  if (unknownProviders.length > 0) {
+    throw new ServiceUnavailableError('Existe provedor legado configurado sem adaptador real.', {
+      unknownProviders
+    });
   }
 
-  return Object.fromEntries(
-    ['candidatesExtracted', 'candidatesRejected', 'verificationLayer']
-      .filter((key) => report[key] !== undefined)
-      .map((key) => [key, report[key]])
-  );
-}
+  const providers = getMarketplaceProviders(providerRegistry);
 
-function normalizeProviderSearchPayload(payload) {
-  if (Array.isArray(payload)) {
-    return { offers: payload, report: {} };
+  if (providers.length === 0) {
+    throw new ServiceUnavailableError('Nenhum provedor legado esta disponivel para buscar produtos.', {
+      disabledProviders: disabled
+    });
   }
 
-  if (isPlainObject(payload) && Array.isArray(payload.offers)) {
-    return {
-      offers: payload.offers,
-      report: sanitizeProviderReport(payload.report)
-    };
+  const providerResults = await runMarketplaceProviders(providers, request);
+  const { providerReports, validOffers, invalidOfferCount } = collectProviderOffers(providerResults, request);
+
+  if (
+    validOffers.length === 0 &&
+    (providerReports.length === 0 || providerReports.every((report) => report.status !== 'ok'))
+  ) {
+    throw new ServiceUnavailableError('Nenhum provedor legado respondeu com ofertas validas agora.', {
+      providers: providerReports
+    });
   }
 
-  return undefined;
+  return createSearchResult({
+    request,
+    results: rankOffers(validOffers, {
+      limit: Math.min(maxResults, TOP_OFFER_LIMIT)
+    }),
+    webCandidates: [],
+    meta: {
+      generatedAt: new Date().toISOString(),
+      normalizedQuery: request.normalizedQuery,
+      currency: request.context.currency,
+      searchMode: SEARCH_MODES.LEGACY_PROVIDERS,
+      rankingRules: RANKING_RULES,
+      rankingSource: 'legacy_providers',
+      providersQueried: providers.length,
+      offersAnalyzed: validOffers.length,
+      invalidOffersIgnored: invalidOfferCount,
+      providerReports,
+      webResearch: { status: 'not_used', providerName: 'openaiweb' }
+    }
+  });
 }
 
-export function createSearchService({ providerRegistry, maxResults = 3 }) {
+export function createSearchService({
+  providerRegistry = EMPTY_PROVIDER_REGISTRY,
+  maxResults = 3,
+  productResearchService,
+  candidateRevalidationService
+} = {}) {
   return {
     async search(input) {
       const request = createSearchRequest(input);
-      const unknownProviders = providerRegistry.getUnknownProviders();
 
-      if (unknownProviders.length > 0) {
-        throw new ServiceUnavailableError('Existe provedor configurado sem adaptador real.', {
-          unknownProviders
-        });
+      if (request.searchMode === SEARCH_MODES.LEGACY_PROVIDERS) {
+        return await runLegacyProviderMode({ request, providerRegistry, maxResults });
       }
 
-      const providers = providerRegistry.getEnabledProviders().map(ensureProviderContract);
-
-      if (providers.length === 0) {
-        throw new ServiceUnavailableError('Nenhum provedor real esta disponivel para buscar produtos.');
-      }
-
-      const providerResults = await Promise.all(
-        providers.map(async (provider) => {
-          try {
-            const payload = normalizeProviderSearchPayload(await provider.search(request));
-
-            if (!payload) {
-              return {
-                providerName: provider.name,
-                status: 'failed'
-              };
-            }
-
-            return {
-              providerName: provider.name,
-              status: 'ok',
-              ...payload
-            };
-          } catch (error) {
-            return {
-              providerName: provider.name,
-              status: 'failed',
-              error
-            };
-          }
-        })
-      );
-
-      const providerReports = [];
-      const validOffers = [];
-      let invalidOfferCount = 0;
-
-      for (const result of providerResults) {
-        if (result.status === 'failed') {
-          providerReports.push(publicProviderError(result.providerName, result.error));
-          continue;
-        }
-
-        const { providerName, offers, report } = result;
-        let providerValidOfferCount = 0;
-
-        for (const offer of offers) {
-          const validation = validateOffer(offer, {
-            expectedProviderName: providerName,
-            expectedCurrency: request.context.currency
-          });
-
-          if (!validation.valid) {
-            invalidOfferCount += 1;
-            continue;
-          }
-
-          validOffers.push(offer);
-          providerValidOfferCount += 1;
-        }
-
-        providerReports.push(publicProviderReport({
-          providerName,
-          offersReceived: offers.length,
-          validOffers: providerValidOfferCount,
-          invalidOffers: offers.length - providerValidOfferCount,
-          ...report
-        }));
-      }
-
-      if (validOffers.length === 0 && providerReports.every((report) => report.status !== 'ok')) {
-        throw new ServiceUnavailableError('Nenhum provedor respondeu com ofertas validas agora.', {
-          providers: providerReports
-        });
-      }
-
-      return createSearchResult({
+      return await runWebResearchMode({
         request,
-        results: rankOffers(validOffers, {
-          limit: Math.min(maxResults, TOP_OFFER_LIMIT)
-        }),
-        meta: {
-          generatedAt: new Date().toISOString(),
-          normalizedQuery: request.normalizedQuery,
-          currency: request.context.currency,
-          rankingRules: RANKING_RULES,
-          providersQueried: providers.length,
-          offersAnalyzed: validOffers.length,
-          invalidOffersIgnored: invalidOfferCount,
-          providerReports
-        }
+        productResearchService,
+        candidateRevalidationService,
+        providerRegistry,
+        maxResults
       });
     }
   };

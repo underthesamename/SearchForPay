@@ -1,0 +1,125 @@
+.web-candidates { margin-top: 14px; }
+
+.verification-badge,
+.candidate-chip,
+.alert-status-chip {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0 8px;
+}
+
+.verification-badge {
+  margin-bottom: 8px;
+  background: rgba(15, 122, 91, 0.1);
+  color: var(--success);
+}
+
+.web-candidate-section {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.candidate-group {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.web-candidate-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.web-candidate-card[data-group="ofertas_completas"] { border-left-color: var(--success); }
+.web-candidate-card[data-group="candidatos_fracos"] { border-left-color: var(--line-strong); opacity: 0.86; }
+.web-candidate-card[data-revalidation-status="confirmado"],
+.web-candidate-card[data-revalidation-status="alterado"] { border-color: rgba(15, 122, 91, 0.34); }
+
+.candidate-rank {
+  background: rgba(154, 103, 0, 0.1);
+  color: var(--warning);
+}
+
+.candidate-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.candidate-chip[data-kind="web"],
+.candidate-chip[data-kind="check"] {
+  background: var(--surface-inset);
+  color: var(--muted);
+}
+
+.candidate-chip[data-kind="ok"] {
+  background: rgba(15, 122, 91, 0.1);
+  color: var(--success);
+}
+
+.candidate-chip[data-kind="warn"] {
+  background: rgba(154, 103, 0, 0.12);
+  color: var(--warning);
+}
+
+.candidate-cost-grid {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 6px;
+  background: var(--surface-inset);
+  font-variant-numeric: tabular-nums;
+}
+
+.candidate-cost-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.candidate-cost-row strong { color: var(--ink); }
+.candidate-cost-row[data-status="missing"] strong { color: var(--warning); }
+
+.candidate-link {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--accent);
+  font-weight: 760;
+  padding: 0 10px;
+}
+
+.evidence-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+.evidence-list a { color: var(--accent); font-weight: 760; }
+.evidence-list span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+@media (max-width: 520px) {
+  .web-candidate-card { grid-template-columns: 1fr; padding: 12px; }
+}

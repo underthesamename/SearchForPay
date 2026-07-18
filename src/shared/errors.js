@@ -1,3 +1,5 @@
+import { redactSensitiveText, sanitizePublicPayload } from './publicSanitizer.js';
+
 export class AppError extends Error {
   constructor(message, options = {}) {
     super(message);
@@ -53,8 +55,8 @@ export function toPublicError(error) {
     return {
       statusCode: error.statusCode,
       code: error.code,
-      message: error.message,
-      details: error.details
+      message: redactSensitiveText(error.message),
+      details: sanitizePublicPayload(error.details)
     };
   }
 

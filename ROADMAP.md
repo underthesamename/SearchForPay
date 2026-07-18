@@ -1,164 +1,128 @@
 # SearchForPay - Roadmap
 
-## Fase 1: Fundacao Do Produto
-
-Objetivo: transformar a ideia em uma especificacao operacional e verificavel.
+## Fase 1: Reposicionamento Do Produto
+Objetivo: tornar a SearchForPay um produto completo de pesquisa e verificacao de ofertas na web, sem APIs de lojas, marketplaces, afiliados ou feeds comerciais.
 
 Entregaveis:
-
-- `PRODUCT.md` com visao, publico, problema, fluxo principal, oferta valida, fontes reais, calculo de custo total e limites do MVP.
-- Roadmap por fases.
-- Definicao clara de que uma oferta valida precisa vir de provedor real configurado e conter preco, frete e imposto.
+- `PRODUCT.md` com visao, estados, fluxo completo, evidencias, ranking, historico, alertas e revalidacao.
+- `README.md` com uso atual centrado em OpenAI Web Search.
+- Remocao da promessa de ranking por APIs de lojas.
 
 Criterio de pronto:
-
-- Documentos criados sem prometer dados ficticios.
-- Regras alinhadas com `GLOBAL.md`, `AGENTS.md`, `SFP.md` e o contrato tecnico atual.
+- Nenhum documento chama candidato incompleto de oferta final.
+- Frete e imposto desconhecidos nao viram zero.
 - `npm.cmd run check` executado com resultado real reportado.
 
-## Fase 2: Contrato De Provedores Reais
-
-Objetivo: preparar a base para conectar fontes reais sem contaminar o sistema com mocks.
-
-Entregaveis:
-
-- Adaptador real em `src/modules/providers/adapters/`.
-- Registro do adaptador em `providerRegistry`.
-- Configuracao por `MARKETPLACE_PROVIDERS`.
-- Tratamento explicito para provedor desconhecido, indisponivel ou com resposta invalida.
-- Documentacao de variaveis de ambiente necessarias, sem registrar segredos.
-
-Criterio de pronto:
-
-- Busca falha claramente quando o provedor nao esta configurado.
-- Nenhuma oferta exibida vem de dado manual ou inventado.
-- Erros publicos nao expoem tokens, chaves ou dados pessoais.
-
-## Fase 3: Busca Real E Normalizacao
-
-Objetivo: consultar uma fonte real e converter a resposta para o contrato interno da SearchForPay.
+## Fase 2: Motor OpenAI Web Search
+Objetivo: usar OpenAI Web Search como motor principal de descoberta e verificacao inicial.
 
 Entregaveis:
-
-- Busca por texto do produto.
-- Envio de contexto necessario para frete e imposto, como CEP quando a fonte exigir.
-- Normalizacao de ofertas para `providerName`, `productTitle`, `productUrl`, `price`, `shipping` e `taxes`.
-- Descarte de ofertas incompletas.
-- Relatorio por provedor com status e quantidade de ofertas validas.
+- Configuracao segura de `OPENAI_API_KEY`, modelo, timeout, limite de candidatos e armazenamento de respostas.
+- Prompt estruturado para retornar candidatos com evidencias clicaveis.
+- Falha clara quando a busca OpenAI estiver desativada ou sem chave.
+- Sanitizacao de erro sem token, chave, query sensivel ou dado pessoal.
 
 Criterio de pronto:
+- Busca sem OpenAI configurado falha de forma clara.
+- Busca com OpenAI configurado retorna candidatos, nao ofertas finais automaticas.
+- Toda evidencia possivel vem com URL HTTPS clicavel.
 
-- Uma busca com provedor real retorna apenas ofertas validas.
-- Uma resposta sem frete ou imposto nao entra no ranking.
-- Falha do provedor nao derruba a API inteira quando outros provedores responderem corretamente.
-
-## Fase 4: Ranking Por Custo Total
-
-Objetivo: garantir que a melhor oferta seja definida pelo custo real para o usuario.
+## Fase 3: Estados E Evidencias
+Objetivo: transformar resultados web em estados honestos de produto.
 
 Entregaveis:
-
-- Calculo de custo total como preco do produto + frete + imposto.
-- Ordenacao crescente pelo custo total.
-- Retorno das 3 melhores ofertas validas.
-- Detalhamento de produto, frete, imposto e total na resposta.
-- Testes cobrindo frete e imposto como parte obrigatoria do custo.
+- Estados: candidato encontrado, candidato verificavel, oferta completa, custo incompleto, precisa confirmacao e indisponivel.
+- Evidencias por campo: produto, loja, preco, frete, imposto, disponibilidade e URL.
+- Avisos publicos para lacunas de frete, imposto, disponibilidade e confirmacao.
+- Testes para impedir promocao indevida de candidato incompleto.
 
 Criterio de pronto:
+- Item sem frete evidenciado vira `custo incompleto` ou `precisa confirmacao`.
+- Item sem imposto evidenciado nao vira `oferta completa`.
+- Item indisponivel nao entra no ranking principal.
 
-- Oferta com menor preco de vitrine perde posicao quando o custo total for maior.
-- Todas as ofertas ranqueadas possuem moeda consistente.
-- Testes passam com `npm.cmd run check`.
-
-## Fase 5: Experiencia MVP
-
-Objetivo: tornar a busca utilizavel por uma pessoa real, sem esconder limites do sistema.
+## Fase 4: Ranking Transparente
+Objetivo: ranquear apenas ofertas completas e separar candidatos uteis, mas incompletos.
 
 Entregaveis:
-
-- Interface simples para produto e contexto de entrega.
-- Estados de carregamento, sucesso, erro e vazio.
-- Exibicao das 3 melhores ofertas com custo total em destaque.
-- Separacao visual entre preco, frete e imposto.
-- Mensagens claras quando nao houver provedor real configurado ou nenhuma oferta valida.
+- Calculo de custo total como produto + frete + imposto.
+- Ordenacao das ofertas completas por custo total.
+- Secao separada para candidatos verificaveis com custo incompleto.
+- Explicacao do motivo de ranking com evidencia e avisos.
 
 Criterio de pronto:
+- Menor preco de vitrine perde para menor custo total real.
+- Frete desconhecido e imposto desconhecido nunca entram como zero.
+- `npm.cmd run check` passa com testes de ranking.
 
-- Usuario consegue fazer uma busca real pelo navegador.
-- Nenhuma area da interface depende de oferta falsa.
-- Erros ajudam o usuario ou operador a entender o problema sem vazar dados sensiveis.
-
-## Fase 6: Confianca E Operacao
-
-Objetivo: preparar o sistema para uso continuo com mais de uma fonte real.
+## Fase 5: Historico
+Objetivo: permitir que o usuario acompanhe o que foi encontrado sem transformar captura antiga em verdade atual.
 
 Entregaveis:
-
-- Logs tecnicos sem segredos.
-- Metadados de busca com horario, provedores consultados e ofertas ignoradas.
-- Timeout por provedor.
-- Testes de falha parcial.
-- Base para adicionar novos adaptadores sem mudar o fluxo principal.
+- Registro de busca com query, pais, moeda, filtros, estado dos candidatos e evidencias.
+- Linha do tempo por produto pesquisado.
+- Comparacao entre capturas com aviso de possivel mudanca de pagina.
+- Mascara para CEP ou qualquer dado sensivel em respostas publicas e logs.
 
 Criterio de pronto:
+- Historico mostra data de captura e estado de cada item.
+- Historico nao cria preco ausente nem estima queda sem nova captura.
 
-- Um provedor lento ou indisponivel nao bloqueia todos os resultados.
-- O sistema informa quais provedores falharam de forma publica e segura.
-- Novos adaptadores seguem o mesmo contrato.
-
-## Fase 7: Alertas De Preco
-
-Objetivo: evoluir de busca manual para acompanhamento ativo sem inventar variacao de preco.
+## Fase 6: Alertas
+Objetivo: transformar pesquisa manual em monitoramento honesto.
 
 Entregaveis:
-
-- Modelo de alerta com busca salva, contexto de entrega e custo total alvo.
-- Persistencia local em arquivo JSON configuravel por ambiente.
-- Rotas para listar, criar, remover e revalidar alerta.
-- Job periodico que reconsulta provedores reais pelo motor de busca.
-- Status de alvo atingido somente quando a melhor oferta valida fica menor ou igual ao alvo.
+- Criacao, listagem, remocao e revalidacao manual de alertas.
+- Alvo por custo total, moeda e contexto de entrega.
+- Aviso separado para candidato promissor sem custo completo.
+- Persistencia configuravel sem segredos no repositorio.
 
 Criterio de pronto:
-
-- Alerta nao dispara sem reconsulta real.
-- Falta de provedor real vira erro claro salvo no alerta.
-- CEP nao aparece em log ou resposta publica nao mascarada.
+- Alerta de oferta so dispara com `oferta completa` revalidada.
+- Candidato incompleto pode gerar aviso de confirmacao, nao alerta de oferta final.
 - `npm.cmd run check` passa com testes de alerta.
 
-## Fase 8: Producao E Seguranca
-
-Objetivo: deixar a ferramenta pronta para uso real com protecoes basicas.
+## Fase 7: Confirmacao No Site Da Loja
+Objetivo: fechar o fluxo com uma decisao segura para o usuario.
 
 Entregaveis:
+- CTA para abrir a evidencia principal no site da loja.
+- Checklist de confirmacao: preco, frete, imposto, estoque, variacao e prazo.
+- Registro opcional de confirmacao do usuario no historico.
+- Aviso de que a SearchForPay nao faz checkout nem garante estoque.
 
+Criterio de pronto:
+- Toda oferta completa exibida tem link de confirmacao.
+- Usuario entende o que ainda precisa conferir antes de comprar.
+
+## Fase 8: Producao E Seguranca
+Objetivo: operar a ferramenta sem vazar dados e sem sobrecarregar busca externa.
+
+Entregaveis:
 - Rate limit nas rotas de API.
-- Timeout global de servidor e timeout por provedor.
-- Cache curto para busca manual sem afetar revalidacao de alertas.
-- Logs tecnicos sem query string, corpo, CEP, tokens ou chaves.
-- `.env.example` completo e sem segredos.
+- Timeouts de servidor e de OpenAI Web Search.
+- Cache curto com identificacao de captura e sem alterar ranking.
+- Logs sem query string sensivel, corpo, CEP completo, tokens ou chaves.
+- `.env.example` sem segredos.
 - Checklist de publicacao em `PRODUCTION.md`.
 
 Criterio de pronto:
-
-- Busca continua falhando claramente sem provedor real.
-- Cache nao cria oferta nem altera ranking.
+- Cache nao cria oferta nem mascara mudanca de estado.
+- Erros publicos sao claros e seguros.
 - `npm.cmd run check` passa.
 
-## Fase 9: Pos-MVP
-
-Objetivo: expandir valor sem comprometer a regra de fontes reais.
+## Fase 9: Remocao De Legado E Pos-MVP
+Objetivo: alinhar o codigo ao posicionamento sem APIs de lojas.
 
 Possiveis entregas:
+- Remover ou isolar adaptadores legados de lojas, marketplaces, afiliados e feeds comerciais.
+- Renomear variaveis historicas ligadas a marketplace sem quebrar migracao.
+- Filtros por disponibilidade, prazo, confianca da evidencia e loja.
+- Exportacao do historico.
+- Notificacoes externas para alertas.
 
-- Mais provedores reais.
-- Historico de preco.
-- Notificacao externa para alertas.
-- Filtros por prazo, reputacao do vendedor e disponibilidade.
-- Melhor tratamento de equivalencia entre produtos parecidos.
-- Suporte a cupons ou cashback apenas quando retornados por fonte real confiavel.
-
-Nao fazer nesta fase:
-
+Nao fazer:
 - Preencher lacunas com dados ficticios.
-- Assumir frete ou imposto quando a fonte nao informar.
-- Criar ranking por patrocinio sem sinalizacao explicita ao usuario.
+- Usar API de loja, marketplace, afiliado ou feed comercial.
+- Assumir frete, imposto ou disponibilidade quando a fonte nao informar.
+- Prometer precisao absoluta.

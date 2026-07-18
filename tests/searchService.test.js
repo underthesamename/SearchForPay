@@ -3,10 +3,14 @@ import assert from 'node:assert/strict';
 import { createSearchService } from '../src/modules/search/searchService.js';
 import { ConfigurationError, ServiceUnavailableError } from '../src/shared/errors.js';
 
-function registry(providers) {
+function registry(providers, options = {}) {
   return {
     getUnknownProviders() {
       return [];
+    },
+
+    getDisabledProviders() {
+      return options.disabledProviders || [];
     },
 
     getEnabledProviders() {
@@ -43,14 +47,40 @@ function validOffer(overrides) {
   };
 }
 
-test('searchService rejeita busca sem provedor real', async () => {
+function legacySearch(input) {
+  return {
+    ...input,
+    searchMode: 'legacy_providers'
+  };
+}
+
+test('searchService rejeita busca legada sem provedor real', async () => {
   const service = createSearchService({
     providerRegistry: registry([])
   });
 
   await assert.rejects(
-    () => service.search({ query: 'notebook', context: { postalCode: '01001000', country: 'BR' } }),
+    () => service.search(legacySearch({ query: 'notebook', context: { postalCode: '01001000', country: 'BR' } })),
     ServiceUnavailableError
+  );
+});
+
+test('searchService informa provedor configurado que ficou desativado', async () => {
+  const service = createSearchService({
+    providerRegistry: registry([], {
+      disabledProviders: [{ providerName: 'openaiweb', reason: 'OPENAI_API_KEY ausente.' }]
+    })
+  });
+
+  await assert.rejects(
+    () => service.search(legacySearch({ query: 'notebook', context: { postalCode: '01001000', country: 'BR' } })),
+    (error) => {
+      assert.ok(error instanceof ServiceUnavailableError);
+      assert.deepEqual(error.details.disabledProviders, [
+        { providerName: 'openaiweb', reason: 'OPENAI_API_KEY ausente.' }
+      ]);
+      return true;
+    }
   );
 });
 
@@ -67,12 +97,12 @@ test('searchService normaliza termo e envia CEP, pais e moeda ao provedor', asyn
     ])
   });
 
-  const payload = await service.search({
+  const payload = await service.search(legacySearch({
     query: '  Monitor    Gamer  ',
     postalCode: ' 01001-000 ',
     country: 'br',
     currency: 'brl'
-  });
+  }));
 
   assert.equal(payload.query, 'Monitor Gamer');
   assert.equal(payload.normalizedQuery, 'monitor gamer');
@@ -84,6 +114,7 @@ test('searchService normaliza termo e envia CEP, pais e moeda ao provedor', asyn
   assert.deepEqual(receivedRequest, {
     query: 'Monitor Gamer',
     normalizedQuery: 'monitor gamer',
+    searchMode: 'legacy_providers',
     context: {
       postalCode: '01001-000',
       country: 'BR',
@@ -105,7 +136,7 @@ test('searchService preserva nome do provedor quando adaptador falha', async () 
   });
 
   await assert.rejects(
-    () => service.search({ query: 'monitor', context: { postalCode: '01001000', country: 'BR' } }),
+    () => service.search(legacySearch({ query: 'monitor', context: { postalCode: '01001000', country: 'BR' } })),
     (error) => {
       assert.equal(error.details.providers[0].providerName, 'marketplace-real');
       assert.equal(error.details.providers[0].status, 'failed');
@@ -130,7 +161,7 @@ test('searchService reporta erro de configuracao do provedor sem segredo bruto',
   });
 
   await assert.rejects(
-    () => service.search({ query: 'monitor', context: { postalCode: '01001000', country: 'BR' } }),
+    () => service.search(legacySearch({ query: 'monitor', context: { postalCode: '01001000', country: 'BR' } })),
     (error) => {
       assert.ok(error instanceof ServiceUnavailableError);
       assert.equal(error.details.providers[0].providerName, 'marketplace-real');
@@ -165,10 +196,10 @@ test('searchService ignora oferta sem loja ou origem real', async () => {
     ])
   });
 
-  const payload = await service.search({
+  const payload = await service.search(legacySearch({
     query: 'monitor',
     context: { postalCode: '01001000', country: 'BR' }
-  });
+  }));
 
   assert.equal(payload.results.length, 0);
   assert.equal(payload.meta.invalidOffersIgnored, 1);
@@ -199,10 +230,10 @@ test('searchService rejeita oferta com providerName diferente do provedor config
     ])
   });
 
-  const payload = await service.search({
+  const payload = await service.search(legacySearch({
     query: 'monitor',
     context: { postalCode: '01001000', country: 'BR' }
-  });
+  }));
 
   assert.equal(payload.results.length, 0);
   assert.equal(payload.meta.invalidOffersIgnored, 1);
@@ -225,10 +256,10 @@ test('searchService ignora oferta em moeda diferente do contexto', async () => {
     ])
   });
 
-  const payload = await service.search({
+  const payload = await service.search(legacySearch({
     query: 'monitor',
     context: { postalCode: '01001000', country: 'BR', currency: 'BRL' }
-  });
+  }));
 
   assert.equal(payload.results.length, 0);
   assert.equal(payload.meta.invalidOffersIgnored, 1);
@@ -246,10 +277,10 @@ test('searchService retorna oferta valida e relatorio por provedor', async () =>
     ])
   });
 
-  const payload = await service.search({
+  const payload = await service.search(legacySearch({
     query: 'monitor',
     context: { postalCode: '01001000', country: 'BR', currency: 'BRL' }
-  });
+  }));
 
   assert.equal(payload.results.length, 1);
   assert.equal(payload.meta.providerReports[0].status, 'ok');
@@ -277,10 +308,10 @@ test('searchService preserva relatorio web sanitizado sem dados pessoais', async
     ])
   });
 
-  const payload = await service.search({
+  const payload = await service.search(legacySearch({
     query: 'monitor',
     context: { postalCode: '01001000', country: 'BR', currency: 'BRL' }
-  });
+  }));
 
   assert.equal(payload.results.length, 1);
   assert.equal(payload.meta.providerReports[0].candidatesExtracted, 2);
@@ -307,10 +338,10 @@ test('searchService mantem busca quando um provedor falha e outro retorna oferta
     ])
   });
 
-  const payload = await service.search({
+  const payload = await service.search(legacySearch({
     query: 'monitor',
     context: { postalCode: '01001000', country: 'BR', currency: 'BRL' }
-  });
+  }));
 
   assert.equal(payload.results.length, 1);
   assert.equal(payload.meta.providerReports.length, 2);
@@ -349,10 +380,10 @@ test('searchService retorna no maximo top 3 ofertas com explicacao curta', async
     maxResults: 10
   });
 
-  const payload = await service.search({
+  const payload = await service.search(legacySearch({
     query: 'monitor',
     context: { postalCode: '01001000', country: 'BR', currency: 'BRL' }
-  });
+  }));
 
   assert.equal(payload.results.length, 3);
   assert.deepEqual(payload.results.map((item) => item.productTitle), ['Opcao 1', 'Opcao 2', 'Opcao 3']);

@@ -1,7 +1,9 @@
-import { isHttpsUrl, sameCurrency, textMatchesQuery } from './adapterUtils.js';
+import { sameCurrency, textMatchesQuery } from './adapterUtils.js';
 import { OPENAI_WEB_PROVIDER_NAME, OPENAI_WEB_SOURCE } from './openaiSearchConfig.js';
-
-const FINAL_CONFIDENCE = new Set(['high', 'medium']);
+import {
+  canPromoteWebCandidateToOffer,
+  validateWebOfferCandidate
+} from '../webOfferCandidateModel.js';
 
 function isPlainObject(value) {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -11,35 +13,25 @@ function cleanText(value, maxLength = 240) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 }
 
-function hasEvidence(value) {
-  return isPlainObject(value) && isHttpsUrl(value.evidenceUrl) && cleanText(value.evidenceText).length > 0;
+function moneyFromCandidate(value) {
+  return {
+    amountCents: value.amountCents,
+    currency: value.currency
+  };
 }
 
-function moneyFromEvidence(value, currency, { allowZero }) {
-  if (!hasEvidence(value) || !Number.isInteger(value.amountCents) || value.amountCents < 0) {
-    return undefined;
+function shippingFromCandidate(candidate) {
+  if (candidate.shipping.exposed === false) {
+    const warning = cleanText(candidate.shipping.warning || 'Frete nao exposto pela fonte web.');
+    return {
+      amountCents: 0,
+      currency: candidate.visiblePrice.currency,
+      exposed: false,
+      warning
+    };
   }
 
-  if (!allowZero && value.amountCents === 0) {
-    return undefined;
-  }
-
-  return { amountCents: value.amountCents, currency };
-}
-
-function shippingFromCandidate(candidate, currency) {
-  const shipping = candidate.shipping;
-
-  if (!isPlainObject(shipping)) {
-    return undefined;
-  }
-
-  if (shipping.exposed === false) {
-    const warning = cleanText(shipping.warning || 'Frete nao exposto pela fonte web.');
-    return { amountCents: 0, currency, exposed: false, warning };
-  }
-
-  return moneyFromEvidence(shipping, currency, { allowZero: true });
+  return moneyFromCandidate(candidate.shipping);
 }
 
 function deliveryFromCandidate(delivery) {
@@ -54,11 +46,20 @@ function deliveryFromCandidate(delivery) {
 }
 
 function evidenceList(candidate) {
+  return candidate.evidence.map((item) => ({
+    field: 'web',
+    url: item.url,
+    title: cleanText(item.title),
+    accessedAt: item.accessedAt
+  }));
+}
+
+function warningsList(candidate, shipping) {
   return [
-    { field: 'price', url: candidate.price.evidenceUrl },
-    candidate.shipping.exposed === false ? undefined : { field: 'shipping', url: candidate.shipping.evidenceUrl },
-    { field: 'taxes', url: candidate.taxes.evidenceUrl }
-  ].filter(Boolean);
+    'Oferta localizada via web_search; confira o site antes de comprar.',
+    ...candidate.warnings.map((warning) => cleanText(warning)).filter(Boolean),
+    shipping.exposed === false ? shipping.warning : undefined
+  ].filter((value, index, list) => value && list.indexOf(value) === index);
 }
 
 function isUnavailable(value) {
@@ -66,54 +67,52 @@ function isUnavailable(value) {
 }
 
 function normalizeCandidate(candidate, searchRequest) {
-  if (!isPlainObject(candidate) || candidate.rejected || !FINAL_CONFIDENCE.has(candidate.confidenceLevel)) {
+  const validation = validateWebOfferCandidate(candidate);
+
+  if (!validation.valid || !canPromoteWebCandidateToOffer(candidate)) {
     return undefined;
   }
 
-  const currency = String(candidate.currency || '').trim().toUpperCase();
+  const currency = candidate.visiblePrice.currency;
 
   if (
     currency !== searchRequest.context.currency ||
     isUnavailable(candidate.availability) ||
-    !textMatchesQuery(candidate.title, searchRequest.normalizedQuery)
+    !textMatchesQuery(candidate.productTitle, searchRequest.normalizedQuery)
   ) {
     return undefined;
   }
 
-  const price = moneyFromEvidence(candidate.price, currency, { allowZero: false });
-  const shipping = shippingFromCandidate(candidate, currency);
-  const taxes = moneyFromEvidence(candidate.taxes, currency, { allowZero: true });
-  const productUrl = cleanText(candidate.productUrl, 500);
-  const sellerName = cleanText(candidate.sellerName);
+  const price = moneyFromCandidate(candidate.visiblePrice);
+  const shipping = shippingFromCandidate(candidate);
+  const taxes = moneyFromCandidate(candidate.taxes);
+  const sellerName = cleanText(candidate.storeName);
+  const productTitle = cleanText(candidate.productTitle);
 
-  if (!price || !shipping || !taxes || !sameCurrency(price, shipping, taxes) || !sellerName || !isHttpsUrl(productUrl)) {
+  if (!sellerName || !productTitle || !sameCurrency(price, shipping, taxes)) {
     return undefined;
   }
 
   const offer = {
     providerName: OPENAI_WEB_PROVIDER_NAME,
     source: OPENAI_WEB_SOURCE,
-    productTitle: cleanText(candidate.title),
-    productUrl,
+    productTitle,
+    productUrl: cleanText(candidate.productUrl, 500),
     price,
     shipping,
     taxes,
     seller: { name: sellerName },
     verification: {
-      confidenceLevel: candidate.confidenceLevel,
+      confidenceLevel: candidate.confidence,
       evidence: evidenceList(candidate),
       note: 'OpenAI web_search localizou candidatos; SearchForPay validou campos obrigatorios antes do ranking.'
     },
-    warnings: ['Oferta localizada via web_search; confira o site antes de comprar.']
+    warnings: warningsList(candidate, shipping)
   };
 
   const delivery = deliveryFromCandidate(candidate.delivery);
   if (delivery) {
     offer.delivery = delivery;
-  }
-
-  if (shipping.exposed === false) {
-    offer.warnings.push(shipping.warning);
   }
 
   return offer;

@@ -17,9 +17,13 @@ test('getEnv monta configuracao do provider ebay a partir do ambiente', () => {
     LOMADEE_ORGANIZATION_IDS: 'e36f5bbb-3e5f-42e2-be4c-6c32dac101c2',
     LOMADEE_SEARCH_LIMIT: '13',
     OPENAI_API_KEY: 'openai-key-redigida',
+    OPENAI_SEARCH_ENABLED: 'true',
     OPENAI_SEARCH_MODEL: 'gpt-5.6',
-    OPENAI_SEARCH_LIMIT: '8',
-    OPENAI_REQUEST_TIMEOUT_MS: '3500',
+    OPENAI_SEARCH_CONTEXT_SIZE: 'medium',
+    OPENAI_SEARCH_MAX_CANDIDATES: '8',
+    OPENAI_SEARCH_TIMEOUT_MS: '3500',
+    OPENAI_SEARCH_RATE_LIMIT_WINDOW_MS: '20000',
+    OPENAI_SEARCH_RATE_LIMIT_MAX_REQUESTS: '9',
     PRICE_ALERTS_FILE: '.local/alerts.json',
     PRICE_ALERT_JOB_INTERVAL_MS: '30000',
     PRICE_ALERT_RECHECK_INTERVAL_MS: '90000',
@@ -44,9 +48,13 @@ test('getEnv monta configuracao do provider ebay a partir do ambiente', () => {
   assert.equal(env.providerOptions.lomadee.organizationIds, 'e36f5bbb-3e5f-42e2-be4c-6c32dac101c2');
   assert.equal(env.providerOptions.lomadee.searchLimit, 13);
   assert.equal(env.providerOptions.openaiweb.apiKey, 'openai-key-redigida');
+  assert.equal(env.providerOptions.openaiweb.enabled, true);
   assert.equal(env.providerOptions.openaiweb.model, 'gpt-5.6');
-  assert.equal(env.providerOptions.openaiweb.searchLimit, 8);
+  assert.equal(env.providerOptions.openaiweb.contextSize, 'medium');
+  assert.equal(env.providerOptions.openaiweb.maxCandidates, 8);
   assert.equal(env.providerOptions.openaiweb.requestTimeoutMs, 3500);
+  assert.equal(env.providerOptions.openaiweb.rateLimitWindowMs, 20000);
+  assert.equal(env.providerOptions.openaiweb.rateLimitMaxRequests, 9);
   assert.equal(env.priceAlertsFile, '.local/alerts.json');
   assert.equal(env.priceAlertJobIntervalMs, 30000);
   assert.equal(env.priceAlertRecheckIntervalMs, 90000);
@@ -54,4 +62,35 @@ test('getEnv monta configuracao do provider ebay a partir do ambiente', () => {
   assert.equal(env.rateLimitMaxRequests, 12);
   assert.equal(env.searchCacheTtlMs, 15000);
   assert.equal(env.serverRequestTimeoutMs, 10000);
+});
+
+test('getEnv deixa OpenAI Search desativada por padrao sem chave real', () => {
+  const env = getEnv({
+    MARKETPLACE_PROVIDERS: 'openaiweb'
+  }, {
+    loadDotEnv: false
+  });
+
+  assert.deepEqual(env.marketplaceProviders, ['openaiweb']);
+  assert.equal(env.providerOptions.openaiweb.enabled, false);
+  assert.equal(env.providerOptions.openaiweb.apiKey, '');
+  assert.equal(env.providerOptions.openaiweb.disabledReason, 'OPENAI_SEARCH_ENABLED=false.');
+  assert.equal(env.providerOptions.openaiweb.model, 'gpt-5.6');
+  assert.equal(env.providerOptions.openaiweb.contextSize, 'high');
+  assert.equal(env.providerOptions.openaiweb.maxCandidates, 8);
+  assert.equal(env.providerOptions.openaiweb.requestTimeoutMs, 15000);
+  assert.equal(env.providerOptions.openaiweb.rateLimitWindowMs, 60000);
+  assert.equal(env.providerOptions.openaiweb.rateLimitMaxRequests, 30);
+});
+
+test('getEnv nao ativa OpenAI Search quando flag esta true mas falta chave', () => {
+  const env = getEnv({
+    MARKETPLACE_PROVIDERS: 'openaiweb',
+    OPENAI_SEARCH_ENABLED: 'true'
+  }, {
+    loadDotEnv: false
+  });
+
+  assert.equal(env.providerOptions.openaiweb.enabled, false);
+  assert.equal(env.providerOptions.openaiweb.disabledReason, 'OPENAI_API_KEY ausente.');
 });

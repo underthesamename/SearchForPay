@@ -18,7 +18,7 @@ body[data-loading="true"] .search-button span::after {
 .skeleton-dot {
   display: block;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--surface-soft), #f7f9f6, var(--surface-soft));
+  background: linear-gradient(90deg, var(--surface-inset), #ffffff, var(--surface-inset));
   background-size: 220% 100%;
   animation: pulse 1200ms ease-in-out infinite;
 }

@@ -27,3 +27,7 @@
 - Ao alterar `try/catch`, conferir sintaxe antes de seguir; `catch` duplicado em `searchService.js` quebrou o parse.
 - Este PowerShell nao aceita `Invoke-WebRequest -SkipHttpErrorCheck`; para validar erro HTTP esperado, usar `try/catch`.
 - Ao adicionar enriquecimento apos montar objeto de oferta, nao retornar o objeto antes do enriquecimento; criar `const offer`, aplicar campos extras e so entao retornar.
+- Ao revalidar candidato web, exigir `productUrl` exato; evidencia antiga apontando para a URL original nao valida candidato retornado com outro link de produto.
+- Se `npm.cmd run dev` falhar com `EADDRINUSE` na porta 3000, usar `PORT` alternativo para smoke test local e reportar a porta usada.
+- Em erro de busca, nao tratar todo `SERVICE_UNAVAILABLE` como falta de chave/configuracao; distinguir rate limit, timeout, indisponibilidade e configuracao ausente.
+- Arquivos `*-current.*.log` podem ficar bloqueados por processo de dev; eles sao ignorados pelo Git, entao nao forcar limpeza se o Windows negar acesso.
